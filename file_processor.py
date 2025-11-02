@@ -1,6 +1,5 @@
 import pandas as pd
 import PyPDF2
-import pdfplumber
 import json
 import csv
 import io
@@ -37,19 +36,12 @@ class FileProcessor:
     def process_pdf(file_content):
         """Επεξεργασία PDF αρχείου"""
         try:
-            extracted_data = {}
-            try:
-                pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
-                text = ""
-                for page in pdf_reader.pages:
-                    text += page.extract_text()
-                extracted_data = FileProcessor._extract_from_text(text)
-            except:
-                with pdfplumber.open(io.BytesIO(file_content)) as pdf:
-                    text = ""
-                    for page in pdf.pages:
-                        text += page.extract_text() or ""
-                extracted_data = FileProcessor._extract_from_text(text)
+            pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+            text = ""
+            for page in pdf_reader.pages:
+                text += page.extract_text() or ""
+            
+            extracted_data = FileProcessor._extract_from_text(text)
             return extracted_data
         except Exception as e:
             raise Exception(f"Σφάλμα ανάγνωσης PDF: {str(e)}")
