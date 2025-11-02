@@ -73,21 +73,11 @@ class FileProcessor:
             raise Exception(f"Σφάλμα ανάγνωσης JSON: {str(e)}")
     
     @staticmethod
-    def process_image(file_content, filename):
-        """Επεξεργασία εικόνας μέσω ImageProcessor"""
-        try:
-            return ImageProcessor.process_file(file_content, filename)
-        except Exception as e:
-            print(f"❌ Σφάλμα εικόνας: {e}")
-            raise Exception(f"Σφάλμα επεξεργασίας εικόνας: {str(e)}")
-    
-    @staticmethod
     def _calculate_totals_from_records(records):
         """Υπολογισμός συνολικών δεδομένων από εγγραφές CSV"""
         total_insurance_days = 0
         total_salary = 0
         salary_count = 0
-        current_date = datetime.now().date()
         
         # Μεταβλητές για τον πρώτο χρήστη
         first_record = records[0]
@@ -191,13 +181,11 @@ class FileProcessor:
             return None
             
         try:
-            # Καθαρισμός string
             date_str = str(date_str).strip()
             
-            # Δοκιμή διαφορετικών μορφών
             formats = [
                 '%Y-%m-%d', '%d/%m/%Y', '%d-%m-%Y', '%Y/%m/%d',
-                '%d.%m.%Y', '%Y.%m.%d', '%d %m %Y', '%Y %m %d'
+                '%d.%m.%Y', '%Y.%m.%d'
             ]
             
             for fmt in formats:
@@ -205,23 +193,6 @@ class FileProcessor:
                     return datetime.strptime(date_str, fmt).date()
                 except:
                     continue
-                    
-            # Προσπάθεια με regex για διάφορες μορφές
-            date_patterns = [
-                r'(\d{4})[-\.\/](\d{1,2})[-\.\/](\d{1,2})',  # YYYY-MM-DD
-                r'(\d{1,2})[-\.\/](\d{1,2})[-\.\/](\d{4})',  # DD-MM-YYYY
-            ]
-            
-            for pattern in date_patterns:
-                match = re.search(pattern, date_str)
-                if match:
-                    groups = match.groups()
-                    if len(groups[0]) == 4:  # YYYY-MM-DD
-                        year, month, day = groups[0], groups[1], groups[2]
-                    else:  # DD-MM-YYYY
-                        day, month, year = groups[0], groups[1], groups[2]
-                    
-                    return date(int(year), int(month), int(day))
                     
         except Exception as e:
             print(f"    ⚠️ Σφάλμα ανάλυσης ημερομηνίας '{date_str}': {e}")
@@ -257,11 +228,9 @@ class FileProcessor:
             
         first_name = str(first_name).lower().strip()
         
-        # Γυναικεία ονόματα (συνηθισμένα ελληνικά)
         female_names = ['μαρια', 'αννα', 'ελενη', 'ευα', 'σοφια', 'κωνσταντινα', 
-                       'αικατερινη', 'βασιλικη', 'δαφνη', 'χρυσα', 'irini', 'dimitra']
+                       'αικατερινη', 'βασιλικη', 'δαφνη', 'χρυσα']
         
-        # Ανδρικό όνομα αν περιέχει γνωστό γυναικείο
         for female_name in female_names:
             if female_name in first_name:
                 return 'female'
@@ -275,14 +244,12 @@ class FileProcessor:
         
         print("🔍 Εξαγωγή δεδομένων από κείμενο PDF...")
         
-        # Βελτιωμένα regex patterns για ελληνικό κείμενο
         patterns = {
             'amka': r'(ΑΜΚΑ|Α\.Μ\.Κ\.Α\.?)[\s:\-]*(\d{11})',
             'birth_date': r'(ΓΕΝΝΗΣΗΣ?|ΗΜΕΡΟΜΗΝΙΑ ΓΕΝΝΗΣΗΣ?)[\s:\-]*(\d{1,2}[\/\-\.]\d{1,2}[\/\-\.]\d{4})',
             'insurance_days': r'(ΗΜΕΡΕΣ ΑΣΦΑΛΙΣΗΣ?|ΑΣΦΑΛΙΣΜΕΝΕΣ ΗΜΕΡΕΣ)[\s:\-]*(\d+)',
             'insurance_years': r'(ΕΤΗ ΑΣΦΑΛΙΣΗΣ?|ΑΣΦΑΛΙΣΤΙΚΑ ΕΤΗ)[\s:\-]*(\d+)',
             'salary': r'(ΜΙΣΘΟΣ|ΜΕΣΟΣ ΜΙΣΘΟΣ|ΕΙΣΟΔΗΜΑ)[\s:\-]*(\d+[\.,]?\d*)',
-            'employer': r'(ΕΡΓΟΔΟΤΗΣ|ΕΤΑΙΡΕΙΑ)[\s:\-]*([^\n\r]+)',
             'fund': r'(ΤΑΜΕΙΟ|ΑΣΦΑΛΙΣΤΙΚΟ ΤΑΜΕΙΟ)[\s:\-]*([^\n\r]+)',
             'age': r'(ΗΛΙΚΙΑ|ΕΤΩΝ)[\s:\-]*(\d+)',
             'birth_year': r'(ΕΤΟΣ ΓΕΝΝΗΣΗΣ|ΓΕΝΝΗΘΗΚΑ)[\s:\-]*(\d{4})'
@@ -302,7 +269,7 @@ class FileProcessor:
                 extracted['birth_year'] = birth_date.year
                 print(f"    🎂 Ηλικία από ημερομηνία: {extracted['current_age']} ετών")
         
-        # Μετατροπή ημερών σε έτη αν χρειαστεί
+        # Μετατροπή ημερών σε έτη
         if 'insurance_days' in extracted and 'insurance_years' not in extracted:
             try:
                 days = int(extracted['insurance_days'])
@@ -311,27 +278,7 @@ class FileProcessor:
             except:
                 pass
         
-        # Αν δεν βρέθηκε ηλικία, δοκίμασε από έτος γέννησης
-        if 'birth_year' in extracted and 'current_age' not in extracted:
-            try:
-                birth_year = int(extracted['birth_year'])
-                current_year = datetime.now().year
-                extracted['current_age'] = current_year - birth_year
-                print(f"    📅 Ηλικία από έτος γέννησης: {extracted['current_age']} ετών")
-            except:
-                pass
-        
-        # Αν δεν βρέθηκαν έτη ασφάλισης, δοκίμασε από ηλικία
-        if 'insurance_years' not in extracted and 'current_age' in extracted:
-            try:
-                age = int(extracted['current_age'])
-                # Υποθέτουμε ότι ξεκίνησε να εργάζεται στα 20
-                extracted['insurance_years'] = max(0, age - 20)
-                print(f"    📊 Εκτίμηση ετών ασφάλισης από ηλικία: {extracted['insurance_years']}")
-            except:
-                pass
-        
-        # Default τιμές ΜΟΝΟ αν δεν βρέθηκε τίποτα
+        # Default τιμές
         defaults = {
             'gender': 'male',
             'current_age': 45,
@@ -355,10 +302,8 @@ class FileProcessor:
         print(f"📋 Επεξεργασία JSON δεδομένων: {type(data)}")
         
         if isinstance(data, list):
-            # Αν είναι λίστα εγγραφών, υπολόγισε σύνολα
             return FileProcessor._calculate_totals_from_records(data)
         else:
-            # Αν είναι απλό αντικείμενο, τυποποίησε τα δεδομένα
             return FileProcessor._standardize_json_data(data)
     
     @staticmethod
@@ -369,15 +314,15 @@ class FileProcessor:
         print(f"🔍 Τυποποίηση JSON: {data}")
         
         mapping = {
-            'gender': ['gender', 'sex', 'φύλο', 'fulo'],
-            'birth_year': ['birth_year', 'birthYear', 'year_of_birth', 'έτος_γέννησης'],
-            'current_age': ['age', 'current_age', 'ηλικία', 'ilikia'],
+            'gender': ['gender', 'sex', 'φύλο'],
+            'birth_year': ['birth_year', 'birthYear', 'year_of_birth'],
+            'current_age': ['age', 'current_age', 'ηλικία'],
             'insurance_years': ['insurance_years', 'years_insured', 'έτη_ασφάλισης'],
             'insurance_days': ['insurance_days', 'days_insured', 'ημέρες_ασφάλισης'],
-            'salary': ['salary', 'income', 'wage', 'μισθός', 'misthos'],
+            'salary': ['salary', 'income', 'wage', 'μισθός'],
             'heavy_work_years': ['heavy_work_years', 'heavy_years', 'βαρέα_έτη'],
-            'children': ['children', 'kids', 'παιδιά', 'paidia'],
-            'fund': ['fund', 'insurance_fund', 'ταμείο', 'tameio']
+            'children': ['children', 'kids', 'παιδιά'],
+            'fund': ['fund', 'insurance_fund', 'ταμείο']
         }
         
         for standard_field, possible_fields in mapping.items():
@@ -387,13 +332,12 @@ class FileProcessor:
                     print(f"    ✅ Αντιστοίχιση {field} -> {standard_field}: {data[field]}")
                     break
         
-        # Υπολογισμός ηλικίας από birth_year αν χρειαστεί
+        # Υπολογισμός ηλικίας από birth_year
         if 'birth_year' in standardized and 'current_age' not in standardized:
             try:
                 birth_year = int(standardized['birth_year'])
                 current_year = datetime.now().year
                 standardized['current_age'] = current_year - birth_year
-                print(f"    📅 Υπολογισμός ηλικίας από έτος γέννησης: {standardized['current_age']}")
             except:
                 pass
         
@@ -402,11 +346,10 @@ class FileProcessor:
             try:
                 days = int(standardized['insurance_days'])
                 standardized['insurance_years'] = round(days / 365.25, 1)
-                print(f"    📅 Μετατροπή {days} ημερών σε {standardized['insurance_years']} έτη")
             except:
                 pass
         
-        # Default τιμές ΜΟΝΟ αν δεν βρέθηκε τίποτα
+        # Default τιμές
         defaults = {
             'gender': 'male',
             'birth_year': 1980,
@@ -421,7 +364,6 @@ class FileProcessor:
         for key, value in defaults.items():
             if key not in standardized:
                 standardized[key] = value
-                print(f"    ⚠️ Χρήση default για {key}: {value}")
         
         return standardized
 
@@ -439,6 +381,6 @@ class FileProcessor:
         elif filename_lower.endswith('.json'):
             return FileProcessor.process_json(file_content)
         elif any(filename_lower.endswith(fmt) for fmt in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp']):
-            return FileProcessor.process_image(file_content, filename)
+            return ImageProcessor.process_file(file_content, filename)
         else:
             raise Exception("Μη υποστηριζόμενη μορφή αρχείου")

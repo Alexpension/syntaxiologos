@@ -1,5 +1,7 @@
 import pytesseract
-from PIL import Image, ImageEnhance, ImageFilter
+import cv2
+import numpy as np
+from PIL import Image
 import io
 import re
 from datetime import datetime, date
@@ -31,9 +33,7 @@ class ImageProcessor:
             return extracted_data
             
         except Exception as e:
-            print(f"❌ Σφάλμα επεξεργασίας εικόνας: {str(e)}")
-            # Fallback: χρήση default τιμών
-            return ImageProcessor._get_default_data()
+            raise Exception(f"Σφάλμα επεξεργασίας εικόνας: {str(e)}")
     
     @staticmethod
     def _preprocess_image(image):
@@ -42,18 +42,20 @@ class ImageProcessor:
         if image.mode != 'L':
             image = image.convert('L')
         
-        # Βελτίωση αντίθεσης
-        enhancer = ImageEnhance.Contrast(image)
-        image = enhancer.enhance(2.0)  # Αύξηση αντίθεσης
+        # Μετατροπή σε numpy array για OpenCV
+        img_array = np.array(image)
         
-        # Βελτίωση ευκρίνειας
-        enhancer = ImageEnhance.Sharpness(image)
-        image = enhancer.enhance(2.0)
+        # Προσαρμογή αντίθεσης
+        img_array = cv2.convertScaleAbs(img_array, alpha=1.5, beta=0)
         
         # Κατάργηση θορύβου
-        image = image.filter(ImageFilter.MedianFilter(size=3))
+        img_array = cv2.medianBlur(img_array, 3)
         
-        return image
+        # Thresholding για καλύτερο κείμενο
+        _, img_array = cv2.threshold(img_array, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        
+        # Μετατροπή πίσω σε PIL Image
+        return Image.fromarray(img_array)
     
     @staticmethod
     def _extract_pension_data(text):
@@ -149,7 +151,15 @@ class ImageProcessor:
             extracted['fund'] = ImageProcessor._map_fund(extracted['fund'])
         
         # Default τιμές ΜΟΝΟ αν δεν βρέθηκε τίποτα
-        defaults = ImageProcessor._get_default_data()
+        defaults = {
+            'gender': 'male',
+            'current_age': 45,
+            'insurance_years': 25,
+            'salary': 1500,
+            'heavy_work_years': 0,
+            'children': 0,
+            'fund': 'ika'
+        }
         
         for key, value in defaults.items():
             if key not in extracted:
@@ -157,20 +167,6 @@ class ImageProcessor:
                 print(f"    ⚠️ Χρήση default για {key}: {value}")
         
         return extracted
-    
-    @staticmethod
-    def _get_default_data():
-        """Επιστροφή default τιμών"""
-        return {
-            'gender': 'male',
-            'current_age': 45,
-            'insurance_years': 25,
-            'salary': 1500,
-            'heavy_work_years': 0,
-            'children': 0,
-            'fund': 'ika',
-            'birth_year': 1980
-        }
     
     @staticmethod
     def _clean_name(name):
