@@ -1,6 +1,5 @@
-from flask import Flask
-
-app = Flask(__name__)
+# routes.py - ΜΟΝΟ routes, χωρίς create_app
+from flask import current_app as app
 
 @app.route('/')
 def home():
