@@ -130,7 +130,7 @@ def calculate_early_reduction(years_early):
     return years_early * 0.06  # 6% μείωση ανά έτος
 
 def calculate_greek_pension(form_data):
-    """ΠΛΗΡΗΣ ΕΛΛΗΝΙΚΟΣ ΥΠΟΛΟΓΙΣΜΟΣ ΣΥΝΤΑΞΗΣ"""
+    """ΠΛΗΡΗΣ ΕΛΛΗΝΙΚΟΣ ΥΠΟΛΟΓΙΜΟΣ ΣΥΝΤΑΞΗΣ"""
     gender = form_data['gender']
     birth_year = int(form_data['birth_year'])
     current_age = int(form_data['current_age'])
@@ -322,7 +322,9 @@ def manual_calculation():
         if 'user_id' in session:
             save_calculation_to_db(session['user_id'], pension_data)
         
-        return render_template('results.html', pension_data=pension_data, pdf_report=pdf_report)
+        return render_template('results.html', 
+                             pension_data=pension_data, 
+                             pdf_report=pdf_report)
                              
     except Exception as e:
         flash(f'Σφάλμα υπολογισμού: {str(e)}')
