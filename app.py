@@ -1,18 +1,63 @@
 import os
-from flask import Flask, render_template, request, flash, send_file
+import sqlite3
+from flask import Flask, render_template, request, flash, send_file, session
 from fpdf import FPDF
 from datetime import datetime
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your-secret-key-here'
+app.config['SECRET_KEY'] = 'your-secret-key-here-change-in-production'
+app.config['DATABASE'] = 'pension_calculator.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 # Δημιουργία φακέλων
 os.makedirs('static/results', exist_ok=True)
 
+def get_db_connection():
+    """Σύνδεση με τη βάση δεδομένων"""
+    conn = sqlite3.connect(app.config['DATABASE'])
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    """Αρχικοποίηση βάσης δεδομένων"""
+    conn = get_db_connection()
+    
+    # Πίνακας χρηστών
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            email TEXT UNIQUE NOT NULL,
+            password_hash TEXT NOT NULL,
+            full_name TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Πίνακας υπολογισμών
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS calculations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id INTEGER,
+            age INTEGER NOT NULL,
+            insurance_years INTEGER NOT NULL,
+            salary REAL NOT NULL,
+            fund TEXT NOT NULL,
+            basic_pension REAL NOT NULL,
+            social_benefit REAL NOT NULL,
+            total_pension REAL NOT NULL,
+            replacement_rate REAL NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users (id)
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+
 def calculate_real_pension(insurance_data):
-    """REAL pension calculation"""
+    """ΠΡΑΓΜΑΤΙΚΟΣ υπολογισμός σύνταξης"""
     years = insurance_data['insurance_years']
     avg_salary = insurance_data['last_5_years_avg']
     
@@ -85,13 +130,53 @@ def create_pdf_report(insurance_data, pension_data):
     pdf.output(filename)
     return filename
 
+def save_calculation_to_db(user_id, form_data, pension_data):
+    """Αποθήκευση υπολογισμού στη βάση"""
+    conn = get_db_connection()
+    
+    conn.execute('''
+        INSERT INTO calculations 
+        (user_id, age, insurance_years, salary, fund, basic_pension, social_benefit, total_pension, replacement_rate)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        user_id,
+        form_data['age'],
+        form_data['years'],
+        form_data['salary'],
+        form_data['fund'],
+        pension_data['basic_pension'],
+        pension_data['social_benefit'],
+        pension_data['total_pension'],
+        pension_data['replacement_rate']
+    ))
+    
+    conn.commit()
+    calculation_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+    conn.close()
+    
+    return calculation_id
+
+def get_user_calculations(user_id):
+    """Λήψη ιστορικού υπολογισμών χρήστη"""
+    conn = get_db_connection()
+    
+    calculations = conn.execute('''
+        SELECT * FROM calculations 
+        WHERE user_id = ? 
+        ORDER BY created_at DESC
+        LIMIT 10
+    ''', (user_id,)).fetchall()
+    
+    conn.close()
+    return calculations
+
 @app.route('/')
 def home():
     return render_template('index.html')
 
 @app.route('/manual', methods=['POST'])
 def manual_calculation():
-    """Manual data entry"""
+    """Χειροκίνητη εισαγωγή δεδομένων"""
     try:
         age = int(request.form['age'])
         years = int(request.form['years'])
@@ -109,6 +194,15 @@ def manual_calculation():
         pension_data = calculate_real_pension(insurance_data)
         pdf_report = create_pdf_report(insurance_data, pension_data)
         
+        # Αποθήκευση στη βάση (αν ο χρήστης είναι συνδεδεμένος)
+        if 'user_id' in session:
+            save_calculation_to_db(session['user_id'], {
+                'age': age,
+                'years': years,
+                'salary': salary,
+                'fund': fund
+            }, pension_data)
+        
         return render_template('results.html',
                              insurance_data=insurance_data,
                              pension_data=pension_data,
@@ -118,6 +212,94 @@ def manual_calculation():
         flash(f'Calculation Error: {str(e)}')
         return render_template('index.html')
 
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    """Εγγραφή νέου χρήστη"""
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        full_name = request.form.get('full_name', '')
+        
+        try:
+            conn = get_db_connection()
+            
+            # Έλεγχος αν υπάρχει ήδη ο χρήστης
+            existing_user = conn.execute(
+                'SELECT id FROM users WHERE email = ?', (email,)
+            ).fetchone()
+            
+            if existing_user:
+                flash('Το email χρησιμοποιείται ήδη')
+                return render_template('register.html')
+            
+            # Δημιουργία νέου χρήστη
+            password_hash = generate_password_hash(password)
+            conn.execute(
+                'INSERT INTO users (email, password_hash, full_name) VALUES (?, ?, ?)',
+                (email, password_hash, full_name)
+            )
+            conn.commit()
+            
+            user_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
+            conn.close()
+            
+            session['user_id'] = user_id
+            session['user_email'] = email
+            flash('Επιτυχής εγγραφή!')
+            return render_template('index.html')
+            
+        except Exception as e:
+            flash(f'Σφάλμα εγγραφής: {str(e)}')
+            return render_template('register.html')
+    
+    return render_template('register.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    """Σύνδεση χρήστη"""
+    if request.method == 'POST':
+        email = request.form['email']
+        password = request.form['password']
+        
+        try:
+            conn = get_db_connection()
+            user = conn.execute(
+                'SELECT * FROM users WHERE email = ?', (email,)
+            ).fetchone()
+            conn.close()
+            
+            if user and check_password_hash(user['password_hash'], password):
+                session['user_id'] = user['id']
+                session['user_email'] = user['email']
+                flash('Επιτυχής σύνδεση!')
+                return render_template('index.html')
+            else:
+                flash('Λάθος email ή κωδικός')
+                return render_template('login.html')
+                
+        except Exception as e:
+            flash(f'Σφάλμα σύνδεσης: {str(e)}')
+            return render_template('login.html')
+    
+    return render_template('login.html')
+
+@app.route('/logout')
+def logout():
+    """Αποσύνδεση χρήστη"""
+    session.clear()
+    flash('Έγινε αποσύνδεση')
+    return render_template('index.html')
+
+@app.route('/history')
+def history():
+    """Ιστορικό υπολογισμών"""
+    if 'user_id' not in session:
+        flash('Παρακαλώ συνδεθείτε για να δείτε το ιστορικό')
+        return render_template('login.html')
+    
+    calculations = get_user_calculations(session['user_id'])
+    return render_template('history.html', calculations=calculations)
+
 @app.route('/download/<filename>')
 def download_file(filename):
     return send_file(filename, as_attachment=True)
@@ -125,6 +307,10 @@ def download_file(filename):
 @app.route('/healthz')
 def health_check():
     return "OK", 200
+
+# Αρχικοποίηση βάσης δεδομένων κατά την εκκίνηση
+with app.app_context():
+    init_db()
 
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=8000)
