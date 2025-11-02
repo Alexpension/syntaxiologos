@@ -1,7 +1,5 @@
 import pytesseract
-import cv2
-import numpy as np
-from PIL import Image
+from PIL import Image, ImageEnhance, ImageFilter
 import io
 import re
 from datetime import datetime, date
@@ -33,7 +31,9 @@ class ImageProcessor:
             return extracted_data
             
         except Exception as e:
-            raise Exception(f"Σφάλμα επεξεργασίας εικόνας: {str(e)}")
+            print(f"❌ Σφάλμα επεξεργασίας εικόνας: {str(e)}")
+            # Fallback: χρήση default τιμών
+            return ImageProcessor._get_default_data()
     
     @staticmethod
     def _preprocess_image(image):
@@ -42,20 +42,18 @@ class ImageProcessor:
         if image.mode != 'L':
             image = image.convert('L')
         
-        # Μετατροπή σε numpy array για OpenCV
-        img_array = np.array(image)
+        # Βελτίωση αντίθεσης
+        enhancer = ImageEnhance.Contrast(image)
+        image = enhancer.enhance(2.0)  # Αύξηση αντίθεσης
         
-        # Προσαρμογή αντίθεσης
-        img_array = cv2.convertScaleAbs(img_array, alpha=1.5, beta=0)
+        # Βελτίωση ευκρίνειας
+        enhancer = ImageEnhance.Sharpness(image)
+        image = enhancer.enhance(2.0)
         
         # Κατάργηση θορύβου
-        img_array = cv2.medianBlur(img_array, 3)
+        image = image.filter(ImageFilter.MedianFilter(size=3))
         
-        # Thresholding για καλύτερο κείμενο
-        _, img_array = cv2.threshold(img_array, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-        
-        # Μετατροπή πίσω σε PIL Image
-        return Image.fromarray(img_array)
+        return image
     
     @staticmethod
     def _extract_pension_data(text):
@@ -151,15 +149,7 @@ class ImageProcessor:
             extracted['fund'] = ImageProcessor._map_fund(extracted['fund'])
         
         # Default τιμές ΜΟΝΟ αν δεν βρέθηκε τίποτα
-        defaults = {
-            'gender': 'male',
-            'current_age': 45,
-            'insurance_years': 25,
-            'salary': 1500,
-            'heavy_work_years': 0,
-            'children': 0,
-            'fund': 'ika'
-        }
+        defaults = ImageProcessor._get_default_data()
         
         for key, value in defaults.items():
             if key not in extracted:
@@ -169,9 +159,22 @@ class ImageProcessor:
         return extracted
     
     @staticmethod
+    def _get_default_data():
+        """Επιστροφή default τιμών"""
+        return {
+            'gender': 'male',
+            'current_age': 45,
+            'insurance_years': 25,
+            'salary': 1500,
+            'heavy_work_years': 0,
+            'children': 0,
+            'fund': 'ika',
+            'birth_year': 1980
+        }
+    
+    @staticmethod
     def _clean_name(name):
         """Καθαρισμός ονόματος"""
-        # Αφαίρεση ετικετών και περιττών λέξεων
         clean_name = re.sub(r'(ΟΝΟΜΑΤΕΠΩΝΥΜΟ|ΕΠΩΝΥΜΟ|ΟΝΟΜА)[\s:\-]*', '', name, flags=re.IGNORECASE)
         return clean_name.strip()
     
@@ -179,7 +182,6 @@ class ImageProcessor:
     def _clean_salary(salary_str):
         """Καθαρισμός μισθού"""
         try:
-            # Αφαίρεση συμβόλων και μετατροπή σε float
             clean_salary = re.sub(r'[^\d,.]', '', salary_str)
             clean_salary = clean_salary.replace(',', '.')
             return float(clean_salary)
