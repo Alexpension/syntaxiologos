@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="calculator-container">
+            <h2>📋 Ιστορικό Ελληνικών Συνταξιοδοτικών Αναλύσεων</h2>
+            
+            {% if analyses %}
+                <div class="table-responsive">
+                    <table class="table table-striped">
+                        <thead>
+                            <tr>
+                                <th>Ημερομηνία Ανάλυσης</th>
+                                <th>Ονοματεπώνυμο</th>
+                                <th>ΑΦΜ</th>
+                                <th>Έτη Ασφάλισης</th>
+                                <th>Ηλικία Συνταξιοδότησης</th>
+                                <th>Υπόλοιπα Έτη</th>
+                                <th>Ημερομηνία Συνταξιοδότησης</th>
+                                <th>PDF Αρχείο</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for analysis in analyses %}
+                            <tr>
+                                <td>{{ analysis.upload_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                                <td>{{ analysis.full_name or 'Δεν βρέθηκε' }}</td>
+                                <td>{{ analysis.afm or 'Δεν βρέθηκε' }}</td>
+                                <td>{{ analysis.total_work_years or 0 }}</td>
+                                <td>{{ analysis.retirement_age or 67 }}</td>
+                                <td>{{ analysis.remaining_work_years or 0 }}</td>
+                                <td>
+                                    {% if analysis.retirement_date %}
+                                        {{ analysis.retirement_date.strftime('%d/%m/%Y') }}
+                                    {% else %}
+                                        -
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-success">✅ Ανεβασμένο</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div class="mt-3">
+                    <p class="text-muted">
+                        Σύνολο αναλύσεων: <strong>{{ analyses|length }}</strong>
+                    </p>
+                </div>
+            {% else %}
+                <div class="text-center py-5">
+                    <h4 class="text-muted">Δεν βρέθηκαν αναλύσεις</h4>
+                    <p class="text-muted">Κάντε την πρώτη σας ανάλυση PDF για να εμφανιστεί εδώ.</p>
+                    <a href="{{ url_for('main.greek_pension') }}" class="btn btn-primary">
+                        📄 Ανάλυση PDF
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

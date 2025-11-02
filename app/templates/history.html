@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="calculator-container">
+            <h2>Ιστορικό Υπολογισμών</h2>
+            
+            {% if calculations %}
+            <!-- Γραφήματα -->
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Μηνιαία Σύνταξη ανά Υπολογισμό</h5>
+                            <canvas id="monthlyPensionChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Συνολική Σύνταξη ανά Υπολογισμό</h5>
+                            <canvas id="totalPensionChart" width="400" height="200"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Πίνακας Υπολογισμών -->
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Ημερομηνία</th>
+                            <th>Ηλικία</th>
+                            <th>Συνταξιοδότηση</th>
+                            <th>Εισόδημα</th>
+                            <th>Αποταμιεύσεις</th>
+                            <th>Μηνιαία Εισφορά</th>
+                            <th>Συνολική Σύνταξη</th>
+                            <th>Μηνιαία Σύνταξη</th>
+                            <th>Ενέργειες</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for calc in calculations %}
+                        <tr>
+                            <td>{{ calc.calculation_date.strftime('%d/%m/%Y %H:%M') }}</td>
+                            <td>{{ calc.current_age }} έτη</td>
+                            <td>{{ calc.retirement_age }} έτη</td>
+                            <td>€{{ "{:,.0f}".format(calc.current_salary) }}</td>
+                            <td>€{{ "{:,.0f}".format(calc.current_savings) }}</td>
+                            <td>€{{ "{:,.0f}".format(calc.monthly_contribution) }}</td>
+                            <td><strong>€{{ "{:,.0f}".format(calc.final_pension) }}</strong></td>
+                            <td><strong>€{{ "{:,.2f}".format(calc.monthly_pension) }}</strong></td>
+                            <td>
+                                <div class="btn-group">
+                                    <a href="{{ url_for('main.export_pdf', calculation_id=calc.id) }}" 
+                                       class="btn btn-success btn-sm">
+                                       📄 PDF
+                                    </a>
+                                    <a href="{{ url_for('main.delete_calculation', calculation_id=calc.id) }}" 
+                                       class="btn btn-danger btn-sm"
+                                       onclick="return confirm('Είστε σίγουρος ότι θέλετε να διαγράψετε αυτόν τον υπολογισμό;')">
+                                       🗑️ Διαγραφή
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="mt-3">
+                <p class="text-muted">
+                    Σύνολο υπολογισμών: <strong>{{ calculations|length }}</strong>
+                </p>
+            </div>
+
+            <!-- Chart.js Script -->
+            <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+            <script>
+                const calculations = [
+                    {% for calc in calculations %}
+                    {
+                        date: "{{ calc.calculation_date.strftime('%d/%m/%Y') }}",
+                        monthlyPension: {{ calc.monthly_pension }},
+                        totalPension: {{ calc.final_pension }},
+                        age: {{ calc.current_age }},
+                        retirementAge: {{ calc.retirement_age }}
+                    }{% if not loop.last %},{% endif %}
+                    {% endfor %}
+                ];
+
+                const labels = calculations.map((calc, index) => `Υπολ. ${index + 1}`);
+
+                const monthlyCtx = document.getElementById('monthlyPensionChart').getContext('2d');
+                new Chart(monthlyCtx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Μηνιαία Σύνταξη (€)',
+                            data: calculations.map(calc => calc.monthlyPension),
+                            backgroundColor: 'rgba(54, 162, 235, 0.6)',
+                            borderColor: 'rgba(54, 162, 235, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Ευρώ'
+                                }
+                            }
+                        }
+                    }
+                });
+
+                const totalCtx = document.getElementById('totalPensionChart').getContext('2d');
+                new Chart(totalCtx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Συνολική Σύνταξη (€)',
+                            data: calculations.map(calc => calc.totalPension),
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 2,
+                            tension: 0.1,
+                            fill: true
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                title: {
+                                    display: true,
+                                    text: 'Ευρώ'
+                                }
+                            }
+                        }
+                    }
+                });
+            </script>
+
+            {% else %}
+                <div class="text-center py-5">
+                    <h4 class="text-muted">Δεν βρέθηκαν υπολογισμοί</h4>
+                    <p class="text-muted">Κάντε τον πρώτο σας υπολογισμό για να εμφανιστεί εδώ.</p>
+                    <a href="{{ url_for('main.calculator') }}" class="btn btn-primary">
+                        Νέος Υπολογισμός
+                    </a>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
