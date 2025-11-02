@@ -123,18 +123,6 @@
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(230, 126, 34, 0.3);
         }
-        .preview-container {
-            margin-top: 20px;
-            text-align: center;
-        }
-        .preview-image {
-            max-width: 300px;
-            max-height: 300px;
-            border-radius: 10px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-            margin: 10px auto;
-            display: none;
-        }
         .flash-messages {
             padding: 15px;
         }
@@ -182,16 +170,12 @@
                     </p>
                     
                     <input type="file" name="file" id="fileInput" class="file-input" 
-                           accept=".xlsx,.xls,.csv,.pdf,.json,.jpg,.jpeg,.png,.bmp,.tiff,.webp" required>
+                           accept=".csv,.pdf,.json" required>
                     <label for="fileInput" class="file-label">
                         📁 Επιλογή Αρχείου
                     </label>
                     
                     <div id="fileName" style="margin: 15px 0; font-weight: 600; color: #2c3e50;"></div>
-                    
-                    <div class="preview-container">
-                        <img id="previewImage" class="preview-image" alt="Προεπισκόπηση εικόνας">
-                    </div>
                     
                     <br>
                     <button type="submit" class="btn btn-success" id="submitBtn" disabled>
@@ -204,42 +188,39 @@
                 <h3>📋 Υποστηριζόμενες Μορφές:</h3>
                 <div class="supported-formats">
                     <div class="format-card">
-                        <div class="format-icon">📊</div>
-                        <h4>Excel Files</h4>
-                        <p>.xlsx, .xls</p>
-                        <small>Δεδομένα ασφάλισης</small>
-                    </div>
-                    <div class="format-card">
                         <div class="format-icon">📄</div>
                         <h4>CSV Files</h4>
                         <p>.csv</p>
-                        <small>Structured data</small>
+                        <small>Δεδομένα ασφάλισης σε μορφή πίνακα</small>
                     </div>
                     <div class="format-card">
                         <div class="format-icon">📑</div>
                         <h4>PDF Files</h4>
                         <p>.pdf</p>
-                        <small>Ασφαλιστικά έγγραφα</small>
-                    </div>
-                    <div class="format-card">
-                        <div class="format-icon">🖼️</div>
-                        <h4>Εικόνες</h4>
-                        <p>.jpg, .png, .webp</p>
-                        <small>Screenshots & φωτογραφίες</small>
+                        <small>Ασφαλιστικά έγγραφα και εκθέσεις</small>
                     </div>
                     <div class="format-card">
                         <div class="format-icon">⚙️</div>
                         <h4>JSON Data</h4>
                         <p>.json</p>
-                        <small>Structured data</small>
+                        <small>Δομημένα δεδομένα σε JSON format</small>
                     </div>
                 </div>
 
                 <div style="margin-top: 25px; text-align: center;">
                     <a href="/csv-template" class="btn btn-purple">📋 Δείτε Πρότυπο CSV</a>
                     <p style="margin-top: 10px; color: #666; font-size: 14px;">
-                        Δημιουργήστε το αρχείο σας σύμφωνα με το πρότυπο μας
+                        Δημιουργήστε το αρχείο σας σύμφωνα με το πρότυπο μας για ακριβείς υπολογισμούς
                     </p>
+                </div>
+
+                <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px;">
+                    <h4>💡 Πληροφορίες:</h4>
+                    <ul style="margin: 10px 0 0 20px; color: #856404;">
+                        <li>Το CSV πρέπει να περιέχει στήλες όπως: AMKA, birth_date, insurance_days, salary_amount</li>
+                        <li>Τα PDF θα αναλυθούν αυτόματα για εξαγωγή δεδομένων</li>
+                        <li>Τα JSON αρχεία πρέπει να ακολουθούν τη δομή του προτύπου μας</li>
+                    </ul>
                 </div>
             </div>
 
@@ -255,7 +236,6 @@
         const fileName = document.getElementById('fileName');
         const submitBtn = document.getElementById('submitBtn');
         const uploadArea = document.getElementById('uploadArea');
-        const previewImage = document.getElementById('previewImage');
 
         // Drag and drop functionality
         uploadArea.addEventListener('dragover', (e) => {
@@ -285,20 +265,8 @@
         });
 
         function handleFileSelection(file) {
-            fileName.textContent = `📄 Επιλεγμένο αρχείο: ${file.name}`;
+            fileName.textContent = `📄 Επιλεγμένο αρχείο: ${file.name} (${(file.size / 1024).toFixed(2)} KB)`;
             submitBtn.disabled = false;
-
-            // Preview image files
-            if (file.type.startsWith('image/')) {
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    previewImage.src = e.target.result;
-                    previewImage.style.display = 'block';
-                };
-                reader.readAsDataURL(file);
-            } else {
-                previewImage.style.display = 'none';
-            }
         }
 
         // Form submission
@@ -307,6 +275,16 @@
             if (!file) {
                 e.preventDefault();
                 alert('Παρακαλώ επιλέξτε αρχείο');
+                return;
+            }
+            
+            // Έλεγχος μορφής αρχείου
+            const allowedExtensions = ['.csv', '.pdf', '.json'];
+            const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+            
+            if (!allowedExtensions.includes(fileExtension)) {
+                e.preventDefault();
+                alert('Μη υποστηριζόμενη μορφή αρχείου. Παρακαλώ επιλέξτε CSV, PDF ή JSON.');
                 return;
             }
             
