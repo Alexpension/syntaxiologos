@@ -412,8 +412,10 @@ def download_file(filename):
 def health_check():
     return "OK", 200
 
+# Fix για Render - χρησιμοποιούμε PORT από environment variable
+if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 8000))
+    app.run(debug=True, host='0.0.0.0', port=port)
+
 with app.app_context():
     init_db()
-
-if __name__ == '__main__':
-    app.run(debug=True, host='0.0.0.0', port=8000)
