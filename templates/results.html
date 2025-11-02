@@ -253,15 +253,23 @@
                     </p>
                     
                     <div style="margin-top: 15px;">
-                        <span class="eligibility-badge {{ 'eligible' if pension_data.eligible_for_full else 'not-eligible' }}">
-                            Πλήρης Σύνταξη: {{ 'ΝΑΙ' if pension_data.eligible_for_full else 'ΟΧΙ' }}
-                        </span>
-                        <span class="eligibility-badge {{ 'eligible' if pension_data.eligible_for_early else 'not-eligible' }}">
-                            Πρόωρη Σύνταξη: {{ 'ΝΑΙ' if pension_data.eligible_for_early else 'ΟΧΙ' }}
-                        </span>
-                        <span class="eligibility-badge {{ 'eligible' if pension_data.eligible_for_heavy else 'not-eligible' }}">
-                            Βαρέα Έργα: {{ 'ΝΑΙ' if pension_data.eligible_for_heavy else 'ΟΧΙ' }}
-                        </span>
+                        {% if pension_data.eligible_for_full %}
+                            <span class="eligibility-badge eligible">Πλήρης Σύνταξη: ΝΑΙ</span>
+                        {% else %}
+                            <span class="eligibility-badge not-eligible">Πλήρης Σύνταξη: ΟΧΙ</span>
+                        {% endif %}
+                        
+                        {% if pension_data.eligible_for_early %}
+                            <span class="eligibility-badge eligible">Πρόωρη Σύνταξη: ΝΑΙ</span>
+                        {% else %}
+                            <span class="eligibility-badge not-eligible">Πρόωρη Σύνταξη: ΟΧΙ</span>
+                        {% endif %}
+                        
+                        {% if pension_data.eligible_for_heavy %}
+                            <span class="eligibility-badge eligible">Βαρέα Έργα: ΝΑΙ</span>
+                        {% else %}
+                            <span class="eligibility-badge not-eligible">Βαρέα Έργα: ΟΧΙ</span>
+                        {% endif %}
                     </div>
                 </div>
 
