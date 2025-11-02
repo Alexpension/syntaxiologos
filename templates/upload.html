@@ -14,7 +14,7 @@
             color: #333;
         }
         .container { 
-            max-width: 800px; 
+            max-width: 1000px; 
             margin: 0 auto; 
             background: white; 
             border-radius: 15px; 
@@ -41,6 +41,11 @@
             text-align: center;
             background: #f8f9fa;
             margin-bottom: 20px;
+            transition: all 0.3s;
+        }
+        .upload-area.dragover {
+            border-color: #27ae60;
+            background: #e8f5e8;
         }
         .upload-icon {
             font-size: 4em;
@@ -66,6 +71,18 @@
             transform: translateY(-2px); 
             box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
         }
+        .btn-success {
+            background: linear-gradient(135deg, #27ae60, #219a52);
+        }
+        .btn-success:hover {
+            box-shadow: 0 10px 20px rgba(39, 174, 96, 0.3);
+        }
+        .btn-purple {
+            background: linear-gradient(135deg, #9b59b6, #8e44ad);
+        }
+        .btn-purple:hover {
+            box-shadow: 0 10px 20px rgba(155, 89, 182, 0.3);
+        }
         .file-info {
             background: #e8f4fd;
             padding: 20px;
@@ -85,6 +102,57 @@
             text-align: center;
             border-left: 4px solid #3498db;
         }
+        .format-icon {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        .file-input {
+            display: none;
+        }
+        .file-label {
+            background: linear-gradient(135deg, #e67e22, #d35400);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-block;
+            margin: 10px;
+            transition: all 0.3s;
+        }
+        .file-label:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(230, 126, 34, 0.3);
+        }
+        .preview-container {
+            margin-top: 20px;
+            text-align: center;
+        }
+        .preview-image {
+            max-width: 300px;
+            max-height: 300px;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            margin: 10px auto;
+            display: none;
+        }
+        .flash-messages {
+            padding: 15px;
+        }
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+        }
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
     </style>
 </head>
 <body>
@@ -94,18 +162,41 @@
             <p>Επιλέξτε αρχείο για αυτόματο υπολογισμό σύνταξης</p>
         </div>
 
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-error">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+        </div>
+
         <div class="content">
-            <form action="/upload" method="post" enctype="multipart/form-data">
-                <div class="upload-area">
+            <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
+                <div class="upload-area" id="uploadArea">
                     <div class="upload-icon">📤</div>
                     <h3>Σύρετε και αφήστε το αρχείο σας εδώ</h3>
                     <p style="margin: 15px 0; color: #666;">
                         ή επιλέξτε από τον υπολογιστή σας
                     </p>
-                    <input type="file" name="file" accept=".xlsx,.xls,.csv,.pdf,.json" 
-                           style="margin: 20px 0; padding: 10px;" required>
+                    
+                    <input type="file" name="file" id="fileInput" class="file-input" 
+                           accept=".xlsx,.xls,.csv,.pdf,.json,.jpg,.jpeg,.png,.bmp,.tiff,.webp" required>
+                    <label for="fileInput" class="file-label">
+                        📁 Επιλογή Αρχείου
+                    </label>
+                    
+                    <div id="fileName" style="margin: 15px 0; font-weight: 600; color: #2c3e50;"></div>
+                    
+                    <div class="preview-container">
+                        <img id="previewImage" class="preview-image" alt="Προεπισκόπηση εικόνας">
+                    </div>
+                    
                     <br>
-                    <button type="submit" class="btn">🚀 Υπολογισμός από Αρχείο</button>
+                    <button type="submit" class="btn btn-success" id="submitBtn" disabled>
+                        🚀 Υπολογισμός από Αρχείο
+                    </button>
                 </div>
             </form>
 
@@ -113,29 +204,116 @@
                 <h3>📋 Υποστηριζόμενες Μορφές:</h3>
                 <div class="supported-formats">
                     <div class="format-card">
-                        <h4>📊 Excel</h4>
+                        <div class="format-icon">📊</div>
+                        <h4>Excel Files</h4>
                         <p>.xlsx, .xls</p>
+                        <small>Δεδομένα ασφάλισης</small>
                     </div>
                     <div class="format-card">
-                        <h4>📄 CSV</h4>
+                        <div class="format-icon">📄</div>
+                        <h4>CSV Files</h4>
                         <p>.csv</p>
+                        <small>Structured data</small>
                     </div>
                     <div class="format-card">
-                        <h4>📑 PDF</h4>
+                        <div class="format-icon">📑</div>
+                        <h4>PDF Files</h4>
                         <p>.pdf</p>
+                        <small>Ασφαλιστικά έγγραφα</small>
                     </div>
                     <div class="format-card">
-                        <h4>⚙️ JSON</h4>
-                        <p>.json</p>
+                        <div class="format-icon">🖼️</div>
+                        <h4>Εικόνες</h4>
+                        <p>.jpg, .png, .webp</p>
+                        <small>Screenshots & φωτογραφίες</small>
                     </div>
+                    <div class="format-card">
+                        <div class="format-icon">⚙️</div>
+                        <h4>JSON Data</h4>
+                        <p>.json</p>
+                        <small>Structured data</small>
+                    </div>
+                </div>
+
+                <div style="margin-top: 25px; text-align: center;">
+                    <a href="/csv-template" class="btn btn-purple">📋 Δείτε Πρότυπο CSV</a>
+                    <p style="margin-top: 10px; color: #666; font-size: 14px;">
+                        Δημιουργήστε το αρχείο σας σύμφωνα με το πρότυπο μας
+                    </p>
                 </div>
             </div>
 
-            <div style="text-align: center; margin-top: 30px;">
+            <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e1e8ed;">
                 <a href="/" class="btn">🏠 Αρχική Σελίδα</a>
                 <a href="/manual" class="btn">✍️ Χειροκίνητη Εισαγωγή</a>
             </div>
         </div>
     </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const submitBtn = document.getElementById('submitBtn');
+        const uploadArea = document.getElementById('uploadArea');
+        const previewImage = document.getElementById('previewImage');
+
+        // Drag and drop functionality
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                fileInput.files = files;
+                handleFileSelection(files[0]);
+            }
+        });
+
+        // File input change
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFileSelection(e.target.files[0]);
+            }
+        });
+
+        function handleFileSelection(file) {
+            fileName.textContent = `📄 Επιλεγμένο αρχείο: ${file.name}`;
+            submitBtn.disabled = false;
+
+            // Preview image files
+            if (file.type.startsWith('image/')) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    previewImage.src = e.target.result;
+                    previewImage.style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            } else {
+                previewImage.style.display = 'none';
+            }
+        }
+
+        // Form submission
+        document.getElementById('uploadForm').addEventListener('submit', function(e) {
+            const file = fileInput.files[0];
+            if (!file) {
+                e.preventDefault();
+                alert('Παρακαλώ επιλέξτε αρχείο');
+                return;
+            }
+            
+            // Show loading state
+            submitBtn.innerHTML = '⏳ Επεξεργασία...';
+            submitBtn.disabled = true;
+        });
+    </script>
 </body>
 </html>

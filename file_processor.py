@@ -4,6 +4,7 @@ import csv
 import io
 from datetime import datetime, date
 import re
+from image_processor import ImageProcessor
 
 class FileProcessor:
     """Επεξεργαστής αρχείων για εξαγωγή πραγματικών δεδομένων σύνταξης"""
@@ -70,6 +71,15 @@ class FileProcessor:
         except Exception as e:
             print(f"❌ Σφάλμα JSON: {e}")
             raise Exception(f"Σφάλμα ανάγνωσης JSON: {str(e)}")
+    
+    @staticmethod
+    def process_image(file_content, filename):
+        """Επεξεργασία εικόνας μέσω ImageProcessor"""
+        try:
+            return ImageProcessor.process_file(file_content, filename)
+        except Exception as e:
+            print(f"❌ Σφάλμα εικόνας: {e}")
+            raise Exception(f"Σφάλμα επεξεργασίας εικόνας: {str(e)}")
     
     @staticmethod
     def _calculate_totals_from_records(records):
@@ -428,5 +438,7 @@ class FileProcessor:
             return FileProcessor.process_pdf(file_content)
         elif filename_lower.endswith('.json'):
             return FileProcessor.process_json(file_content)
+        elif any(filename_lower.endswith(fmt) for fmt in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp']):
+            return FileProcessor.process_image(file_content, filename)
         else:
             raise Exception("Μη υποστηριζόμενη μορφή αρχείου")

@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Πρότυπο CSV - Συνταξιολόγος</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+               background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+               min-height: 100vh; padding: 20px; color: #333; }
+        .container { max-width: 1000px; margin: 0 auto; background: white; 
+                    border-radius: 15px; box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+                    overflow: hidden; }
+        .header { background: linear-gradient(135deg, #3498db, #2980b9);
+                  color: white; padding: 30px; text-align: center; }
+        .content { padding: 40px; }
+        .template-example { background: #f8f9fa; padding: 20px; border-radius: 10px; margin: 20px 0; }
+        .code-block { background: #2c3e50; color: white; padding: 15px; border-radius: 5px; 
+                      font-family: monospace; overflow-x: auto; margin: 10px 0; }
+        .btn { background: linear-gradient(135deg, #27ae60, #219a52); color: white; 
+               padding: 15px 30px; border: none; border-radius: 8px; font-size: 16px; 
+               font-weight: 600; cursor: pointer; text-decoration: none;
+               display: inline-block; margin: 10px 5px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📋 Πρότυπο CSV για Συνταξιολόγο</h1>
+            <p>Δημιουργήστε το αρχείο σας σύμφωνα με αυτό το πρότυπο</p>
+        </div>
+
+        <div class="content">
+            <h3>Μορφή Αρχείου CSV:</h3>
+            <div class="template-example">
+                <h4>📊 Δομή Στηλών (ΧΡΗΣΙΜΟΠΟΙΗΣΤΕ ΑΥΤΕΣ ΤΙΣ ΟΝΟΜΑΣΙΕΣ):</h4>
+                <div class="code-block">
+amka,first_name,last_name,birth_date,start_date,end_date,employer,insurance_days,salary_amount,fund_code
+</div>
+                
+                <h4>📝 Παράδειγμα Δεδομένων:</h4>
+                <div class="code-block">
+amka,first_name,last_name,birth_date,start_date,end_date,employer,insurance_days,salary_amount,fund_code
+01018012345,ΓΙΑΝΝΗΣ,ΠΑΠΑΔΟΠΟΥΛΟΣ,1980-01-01,2000-01-01,2024-12-31,ΕΤΑΙΡΕΙΑ ΑΕ,5475,1500.00,IKA
+02027512346,ΜΑΡΙΑ,ΑΝΔΡΕΑΔΟΥ,1975-02-02,1995-03-15,2024-12-31,ΔΗΜΟΣ,6200,1800.00,IKA
+</div>
+            </div>
+
+            <div class="template-example">
+                <h3>📋 Εξήγηση Πεδίων:</h3>
+                <ul style="margin: 15px 0 0 20px;">
+                    <li><strong>amka:</strong> Αριθμός Μητρώου Κοινωνικής Ασφάλισης (11 ψηφία)</li>
+                    <li><strong>birth_date:</strong> Ημερομηνία γέννησης (YYYY-MM-DD)</li>
+                    <li><strong>start_date:</strong> Ημερομηνία έναρξης ασφάλισης</li>
+                    <li><strong>end_date:</strong> Ημερομηνία λήξης ασφάλισης</li>
+                    <li><strong>insurance_days:</strong> Σύνολο ημερών ασφάλισης</li>
+                    <li><strong>salary_amount:</strong> Μηνιαίος μισθός (€)</li>
+                    <li><strong>fund_code:</strong> Κωδικός ταμείου (IKA, OAEE, ETAA, etc)</li>
+                </ul>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="/upload" class="btn">📤 Πίσω στο Ανέβασμα</a>
+                <a href="/" class="btn">🏠 Αρχική Σελίδα</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>
