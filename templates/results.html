@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Αποτελέσματα Υπολογισμού - Συνταξιολόγος Pro</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; 
+            padding: 20px;
+            color: #333;
+        }
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 15px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header { 
+            background: linear-gradient(135deg, #27ae60, #219a52);
+            color: white; 
+            padding: 30px; 
+            text-align: center;
+        }
+        .header h1 { 
+            font-size: 2.5em; 
+            margin-bottom: 10px;
+        }
+        .content { 
+            padding: 40px; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 40px;
+        }
+        @media (max-width: 768px) {
+            .content { grid-template-columns: 1fr; }
+        }
+        .results-card, .details-card, .ocr-card {
+            background: #f8f9fa; 
+            padding: 30px; 
+            border-radius: 10px; 
+            border-left: 5px solid #3498db;
+        }
+        .results-card { border-left-color: #27ae60; }
+        .details-card { border-left-color: #e74c3c; }
+        .ocr-card { border-left-color: #f39c12; }
+        .card-title { 
+            color: #2c3e50; 
+            margin-bottom: 20px; 
+            font-size: 1.5em;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .result-item { 
+            background: white; 
+            padding: 20px; 
+            margin: 15px 0; 
+            border-radius: 8px; 
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .pension-amount { 
+            font-size: 2.5em; 
+            font-weight: bold; 
+            color: #27ae60; 
+            text-align: center;
+            margin: 20px 0;
+        }
+        .breakdown { 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 15px; 
+            margin-top: 20px;
+        }
+        .breakdown-item { 
+            background: white; 
+            padding: 15px; 
+            border-radius: 8px; 
+            text-align: center;
+            border-left: 4px solid #3498db;
+        }
+        .breakdown-value { 
+            font-size: 1.4em; 
+            font-weight: bold; 
+            color: #2c3e50;
+        }
+        .breakdown-label { 
+            font-size: 0.9em; 
+            color: #7f8c8d; 
+            margin-top: 5px;
+        }
+        .btn { 
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white; 
+            padding: 15px 30px; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            font-weight: 600;
+            cursor: pointer; 
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin: 10px 5px;
+        }
+        .btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+        .btn-download {
+            background: linear-gradient(135deg, #e74c3c, #c0392b);
+        }
+        .btn-download:hover {
+            box-shadow: 0 10px 20px rgba(231, 76, 60, 0.3);
+        }
+        .btn-new {
+            background: linear-gradient(135deg, #27ae60, #219a52);
+        }
+        .btn-new:hover {
+            box-shadow: 0 10px 20px rgba(39, 174, 96, 0.3);
+        }
+        .actions { 
+            text-align: center; 
+            margin-top: 30px; 
+            padding-top: 30px; 
+            border-top: 1px solid #e1e8ed;
+        }
+        .ocr-text {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 0.9em;
+            line-height: 1.4;
+            border: 1px solid #e1e8ed;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .info-item {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+        .info-label {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+        .highlight {
+            background: linear-gradient(135deg, #ffeaa7, #fdcb6e);
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>✅ ΑΠΟΤΕΛΕΣΜΑΤΑ ΥΠΟΛΟΓΙΣΜΟΥ</h1>
+            <p>Αναλυτική έκθεση σύνταξης με βάση τα ασφαλιστικά σας στοιχεία</p>
+        </div>
+
+        <div class="content">
+            <!-- Αριστερά: Βασικά Αποτελέσματα -->
+            <div>
+                <div class="results-card">
+                    <h2 class="card-title">💰 ΣΥΝΟΛΙΚΗ ΣΥΝΤΑΞΗ</h2>
+                    <div class="pension-amount">
+                        {{ pension_data.total_pension }} €
+                    </div>
+                    <p style="text-align: center; color: #7f8c8d; margin-bottom: 20px;">
+                        Μηνιαίο ποσό σύνταξης
+                    </p>
+
+                    <div class="breakdown">
+                        <div class="breakdown-item">
+                            <div class="breakdown-value">{{ pension_data.basic_pension }} €</div>
+                            <div class="breakdown-label">Βασική Σύνταξη</div>
+                        </div>
+                        <div class="breakdown-item">
+                            <div class="breakdown-value">{{ pension_data.social_benefit }} €</div>
+                            <div class="breakdown-label">Επίδομα</div>
+                        </div>
+                        <div class="breakdown-item">
+                            <div class="breakdown-value">{{ pension_data.replacement_rate }}%</div>
+                            <div class="breakdown-label">Αντικατάστασης</div>
+                        </div>
+                        <div class="breakdown-item">
+                            <div class="breakdown-value">{{ insurance_data.insurance_years }}</div>
+                            <div class="breakdown-label">Έτη Ασφάλισης</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="details-card">
+                    <h2 class="card-title">📊 ΣΤΟΙΧΕΙΑ ΑΣΦΑΛΙΣΗΣ</h2>
+                    <div class="info-grid">
+                        <div class="info-item">
+                            <div class="info-label">ΑΜΚΑ</div>
+                            <div class="info-value">{{ insurance_data.amka }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Εργοδότης</div>
+                            <div class="info-value">{{ insurance_data.employer }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Έτη Ασφάλισης</div>
+                            <div class="info-value">{{ insurance_data.insurance_years }}</div>
+                        </div>
+                        <div class="info-item">
+                            <div class="info-label">Μέσος Μισθός</div>
+                            <div class="info-value">{{ insurance_data.last_5_years_avg }} €</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Δεξιά: OCR Data & Actions -->
+            <div>
+                {% if extracted_text %}
+                <div class="ocr-card">
+                    <h2 class="card-title">🔍 ΑΝΑΓΝΩΡΙΣΜΕΝΑ ΔΕΔΟΜΕΝΑ</h2>
+                    <p style="margin-bottom: 15px; color: #7f8c8d;">
+                        Κείμενο που αναγνωρίστηκε από το αρχείο:
+                    </p>
+                    <div class="ocr-text">
+                        {{ extracted_text }}
+                    </div>
+                </div>
+                {% endif %}
+
+                <div class="highlight">
+                    <h3>📈 Ανάλυση Υπολογισμού</h3>
+                    <p style="margin: 10px 0;">
+                        Η σύνταξη υπολογίστηκε βάσει {{ insurance_data.insurance_years }} ετών ασφάλισης 
+                        και μέσου μισθού {{ insurance_data.last_5_years_avg }} €.
+                    </p>
+                    <p style="font-weight: 600; color: #2c3e50;">
+                        Ποσοστό αντικατάστασης: {{ pension_data.replacement_rate }}%
+                    </p>
+                </div>
+
+                <div class="actions">
+                    <a href="{{ pdf_report }}" class="btn btn-download" download>
+                        📥 Λήψη PDF Report
+                    </a>
+                    <a href="/" class="btn btn-new">
+                        🆕 Νέος Υπολογισμός
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Additional Info -->
+        <div style="padding: 30px 40px; background: #f8f9fa; border-top: 1px solid #e1e8ed;">
+            <h3 style="color: #2c3e50; margin-bottom: 20px;">ℹ️ Σημαντικές Πληροφορίες</h3>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px;">
+                <div style="background: white; padding: 20px; border-radius: 8px;">
+                    <h4 style="color: #3498db; margin-bottom: 10px;">📋 Βάση Υπολογισμού</h4>
+                    <p>Ο υπολογισμός βασίζεται στους επίσημους τύπους του ΕΦΚΑ/ΙΚΑ και περιλαμβάνει:</p>
+                    <ul style="margin: 10px 0 0 20px; color: #555;">
+                        <li>Βασική σύνταξη βάσει ετών ασφάλισης</li>
+                        <li>Επίδομα χαμηλής σύνταξης</li>
+                        <li>Εθνική σύνταξη (όπου ισχύει)</li>
+                    </ul>
+                </div>
+                <div style="background: white; padding: 20px; border-radius: 8px;">
+                    <h4 style="color: #e74c3c; margin-bottom: 10px;">⚠️ Προσοχή</h4>
+                    <p>Αυτός είναι ένας εκτιμώμενος υπολογισμός. Η πραγματική σύνταξη μπορεί να διαφέρει λόγω:</p>
+                    <ul style="margin: 10px 0 0 20px; color: #555;">
+                        <li>Αλλαγών στη νομοθεσία</li>
+                        <li>Επιπλέον επιδομάτων</li>
+                        <li>Συγκεκριμένων προϋποθέσεων</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

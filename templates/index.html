@@ -1,35 +1,314 @@
 <!DOCTYPE html>
-<html>
+<html lang="el">
 <head>
-    <title>Συνταξιολόγος - Υπολογισμός Σύνταξης</title>
-    <meta charset="utf-8">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Συνταξιολόγος Pro - Πλήρης Ανάλυση Σύνταξης</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; 
+            padding: 20px;
+        }
+        .container { 
+            max-width: 1000px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 15px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header { 
+            background: linear-gradient(135deg, #2c3e50, #3498db);
+            color: white; 
+            padding: 30px; 
+            text-align: center;
+        }
+        .header h1 { 
+            font-size: 2.5em; 
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .header p { 
+            font-size: 1.2em; 
+            opacity: 0.9;
+        }
+        .content { 
+            padding: 40px; 
+            display: grid; 
+            grid-template-columns: 1fr 1fr; 
+            gap: 40px;
+        }
+        @media (max-width: 768px) {
+            .content { grid-template-columns: 1fr; }
+        }
+        .section { 
+            background: #f8f9fa; 
+            padding: 30px; 
+            border-radius: 10px; 
+            border-left: 5px solid #3498db;
+        }
+        .section h2 { 
+            color: #2c3e50; 
+            margin-bottom: 20px; 
+            font-size: 1.5em;
+        }
+        .form-group { 
+            margin-bottom: 20px; 
+        }
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 600; 
+            color: #2c3e50;
+        }
+        input, select { 
+            width: 100%; 
+            padding: 12px; 
+            border: 2px solid #e1e8ed; 
+            border-radius: 8px; 
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus {
+            border-color: #3498db;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+        .btn { 
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white; 
+            padding: 15px 30px; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            font-weight: 600;
+            cursor: pointer; 
+            width: 100%; 
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+        .btn-upload {
+            background: linear-gradient(135deg, #27ae60, #219a52);
+        }
+        .btn-upload:hover {
+            box-shadow: 0 10px 20px rgba(39, 174, 96, 0.3);
+        }
+        .file-upload {
+            border: 2px dashed #bdc3c7;
+            border-radius: 8px;
+            padding: 30px;
+            text-align: center;
+            transition: border-color 0.3s;
+            cursor: pointer;
+        }
+        .file-upload:hover {
+            border-color: #3498db;
+        }
+        .file-upload.dragover {
+            border-color: #27ae60;
+            background: rgba(39, 174, 96, 0.05);
+        }
+        .features { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
+            gap: 20px; 
+            margin-top: 30px;
+        }
+        .feature { 
+            text-align: center; 
+            padding: 20px; 
+            background: white; 
+            border-radius: 10px; 
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .feature-icon { 
+            font-size: 2em; 
+            margin-bottom: 10px; 
+            color: #3498db;
+        }
+        .flash-messages {
+            margin: 20px 0;
+        }
+        .flash-message {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-weight: 500;
+        }
+        .flash-error {
+            background: #ffeaa7;
+            border-left: 5px solid #fdcb6e;
+            color: #2d3436;
+        }
+        .flash-success {
+            background: #55efc4;
+            border-left: 5px solid #00b894;
+            color: #2d3436;
+        }
+    </style>
 </head>
 <body>
-    <h1>🏛️ Συνταξιολόγος</h1>
-    <p>Υπολογίστε την σύνταξή σας με βάση τα έτη ασφάλισης</p>
-    
-    <form action="/calculate" method="post">
-        <div>
-            <label for="age">Ηλικία:</label>
-            <input type="number" id="age" name="age" required min="18" max="75">
+    <div class="container">
+        <div class="header">
+            <h1>🏛️ ΣΥΝΤΑΞΙΟΛΟΓΟΣ PRO</h1>
+            <p>Πλήρης ανάλυση σύνταξης με OCR τεχνολογία & πραγματικούς υπολογισμούς</p>
         </div>
-        
-        <div>
-            <label for="years">Έτη ασφάλισης:</label>
-            <input type="number" id="years" name="years" required min="1" max="50">
+
+        <div class="flash-messages">
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="flash-message flash-error">{{ message }}</div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
         </div>
+
+        <div class="content">
+            <!-- Αριστερά: Upload PDF -->
+            <div class="section">
+                <h2>📄 Αυτόματη Ανάλυση από Αρχεία</h2>
+                <p>Ανεβάστε αρχεία PDF ή εικόνες από:</p>
+                <ul style="margin: 15px 0 25px 20px; color: #555;">
+                    <li>Αποδείξεις μισθοδοσίας</li>
+                    <li>Βεβαιώσεις ΕΦΚΑ/ΙΚΑ</li>
+                    <li>Οποιοδήποτε έγγραφο με ασφαλιστικά στοιχεία</li>
+                </ul>
+                
+                <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
+                    <div class="file-upload" id="fileUploadArea">
+                        <div style="font-size: 3em; margin-bottom: 15px;">📁</div>
+                        <p><strong>Κάντε κλικ ή σύρετε αρχείο εδώ</strong></p>
+                        <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                            PDF, JPG, PNG (μέχρι 16MB)
+                        </p>
+                        <input type="file" name="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" 
+                               style="display: none;" required>
+                    </div>
+                    <button type="submit" class="btn btn-upload" style="margin-top: 20px;">
+                        🔍 ΑΝΑΓΝΩΡΙΣΗ & ΥΠΟΛΟΓΙΣΜΟΣ
+                    </button>
+                </form>
+            </div>
+
+            <!-- Δεξιά: Χειροκίνητη Εισαγωγή -->
+            <div class="section">
+                <h2>✍️ Χειροκίνητη Εισαγωγή</h2>
+                <p>Συμπληρώστε τα στοιχεία σας για άμεσο υπολογισμό:</p>
+                
+                <form action="/manual" method="post">
+                    <div class="form-group">
+                        <label for="age">Ηλικία (έτη):</label>
+                        <input type="number" id="age" name="age" min="18" max="75" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="years">Έτη Ασφάλισης:</label>
+                        <input type="number" id="years" name="years" min="1" max="50" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="salary">Μέσος Μισθός (€):</label>
+                        <input type="number" id="salary" name="salary" min="500" max="10000" step="100" value="1500">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="fund">Ασφαλιστικό Ταμείο:</label>
+                        <select id="fund" name="fund">
+                            <option value="ika">ΙΚΑ</option>
+                            <option value="efka">ΕΦΚΑ</option>
+                            <option value="oaee">ΟΑΕΕ</option>
+                            <option value="other">Άλλο</option>
+                        </select>
+                    </div>
+                    
+                    <button type="submit" class="btn">
+                        🧮 ΥΠΟΛΟΓΙΣΜΟΣ ΣΥΝΤΑΞΗΣ
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Features -->
+        <div style="padding: 40px; background: #f8f9fa; border-top: 1px solid #e1e8ed;">
+            <h2 style="text-align: center; margin-bottom: 30px; color: #2c3e50;">🚀 Δυνατότητες Συστήματος</h2>
+            <div class="features">
+                <div class="feature">
+                    <div class="feature-icon">🔍</div>
+                    <h3>OCR Τεχνολογία</h3>
+                    <p>Αυτόματη ανάγνωση δεδομένων από έγγραφα</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📊</div>
+                    <h3>Πραγματικοί Υπολογισμοί</h3>
+                    <p>Βάσει επίσημων τύπων ΕΦΚΑ/ΙΚΑ</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📑</div>
+                    <h3>PDF Reports</h3>
+                    <p>Εξαγωγή αναλυτικών εκθέσεων</p>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">⚡</div>
+                    <h3>Ακριβής Ανάλυση</h3>
+                    <p>Λεπτομερής ανάλυση με όλα τα επιδόματα</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Drag & drop functionality
+        const fileUploadArea = document.getElementById('fileUploadArea');
+        const fileInput = document.getElementById('fileInput');
+
+        fileUploadArea.addEventListener('click', () => fileInput.click());
         
-        <button type="submit">Υπολόγισε Σύνταξη</button>
-    </form>
-    
-    <style>
-        body { font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; }
-        h1 { color: #2c3e50; }
-        form div { margin: 15px 0; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; }
-        input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; }
-        button { background: #3498db; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; }
-        button:hover { background: #2980b9; }
-    </style>
+        fileUploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.add('dragover');
+        });
+        
+        fileUploadArea.addEventListener('dragleave', () => {
+            fileUploadArea.classList.remove('dragover');
+        });
+        
+        fileUploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            fileUploadArea.classList.remove('dragover');
+            fileInput.files = e.dataTransfer.files;
+            
+            // Update UI to show selected file
+            if (e.dataTransfer.files.length > 0) {
+                fileUploadArea.innerHTML = `
+                    <div style="font-size: 3em; margin-bottom: 15px;">✅</div>
+                    <p><strong>Επιλεγμένο αρχείο:</strong></p>
+                    <p style="color: #27ae60; font-weight: 600;">${e.dataTransfer.files[0].name}</p>
+                    <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                        Κάντε υποβολή για ανάλυση
+                    </p>
+                `;
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                fileUploadArea.innerHTML = `
+                    <div style="font-size: 3em; margin-bottom: 15px;">✅</div>
+                    <p><strong>Επιλεγμένο αρχείο:</strong></p>
+                    <p style="color: #27ae60; font-weight: 600;">${e.target.files[0].name}</p>
+                    <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                        Κάντε υποβολή για ανάλυση
+                    </p>
+                `;
+            }
+        });
+    </script>
 </body>
 </html>
