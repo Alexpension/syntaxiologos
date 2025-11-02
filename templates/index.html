@@ -13,7 +13,7 @@
             padding: 20px;
         }
         .container { 
-            max-width: 1000px; 
+            max-width: 1200px; 
             margin: 0 auto; 
             background: white; 
             border-radius: 15px; 
@@ -163,6 +163,11 @@
             margin-bottom: 20px;
             color: white;
         }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
     </style>
 </head>
 <body>
@@ -170,7 +175,7 @@
         <div class="header">
             <div class="header-content">
                 <h1>🏛️ ΣΥΝΤΑΞΙΟΛΟΓΟΣ PRO</h1>
-                <p>Πλήρης ανάλυση σύνταξης με πραγματικούς υπολογισμούς ΕΦΚΑ/ΙΚΑ</p>
+                <p>Πλήρης ανάλυση σύνταξης με βάση την Ελληνική νομοθεσία</p>
             </div>
             <div class="user-menu">
                 {% if session.user_id %}
@@ -204,20 +209,21 @@
                 </div>
                 {% endif %}
 
-                <h2>🚀 Προχωρημένος Συνταξιολόγος</h2>
+                <h2>🏛️ Πλήρης Ελληνική Νομοθεσία</h2>
                 
                 <div class="info-box">
-                    <h3>📊 Πραγματικοί Υπολογισμοί</h3>
-                    <p>Βάσει επίσημων τύπων ΕΦΚΑ & ΙΚΑ</p>
+                    <h3>📋 Νέες Παράμετροι</h3>
+                    <p>Υπολογισμός με βάση όλη την τρέχουσα νομοθεσία</p>
                 </div>
 
                 <p><strong>Νέες Δυνατότητες:</strong></p>
                 <ul style="margin: 15px 0 25px 20px; color: #555;">
-                    <li>💾 <strong>Αποθήκευση ιστορικού</strong> υπολογισμών</li>
-                    <li>👤 <strong>Προσωπικός λογαριασμός</strong></li>
-                    <li>📈 <strong>Σύγκριση</strong> πολλαπλών υπολογισμών</li>
-                    <li>💰 Βασική σύνταξη + επιδόματα</li>
-                    <li>📑 Αυτόματη δημιουργία PDF reports</li>
+                    <li>👨‍👩‍👧‍👦 <strong>Φύλο & έτος γέννησης</strong></li>
+                    <li>⚒️ <strong>Βαρέα & ανθυγιεινά επαγγέλματα</strong></li>
+                    <li>👶 <strong>Επίδομα τέκνων</strong></li>
+                    <li>📅 <strong>Ηλικία συνταξιοδότησης</strong></li>
+                    <li>💰 <strong>Πλήρης & πρόωρη σύνταξη</strong></li>
+                    <li>🎯 <strong>Ακριβείς προβλέψεις</strong></li>
                 </ul>
 
                 {% if not session.user_id %}
@@ -234,19 +240,48 @@
             <!-- Δεξιά: Χειροκίνητη Εισαγωγή -->
             <div class="section">
                 <h2>✍️ Υπολογισμός Σύνταξης</h2>
-                <p>Συμπληρώστε τα στοιχεία σας για άμεσο υπολογισμό:</p>
+                <p>Συμπληρώστε τα στοιχεία σας για ακριβή ανάλυση:</p>
                 
                 <form action="/manual" method="post">
-                    <div class="form-group">
-                        <label for="age">Ηλικία (έτη):</label>
-                        <input type="number" id="age" name="age" min="18" max="75" required>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="gender">Φύλο:</label>
+                            <select id="gender" name="gender" required>
+                                <option value="male">Άνδρας</option>
+                                <option value="female">Γυναίκα</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="birth_year">Έτος Γέννησης:</label>
+                            <input type="number" id="birth_year" name="birth_year" min="1940" max="2005" value="1980" required>
+                        </div>
                     </div>
-                    
-                    <div class="form-group">
-                        <label for="years">Έτη Ασφάλισης:</label>
-                        <input type="number" id="years" name="years" min="1" max="50" required>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="current_age">Τρέχουσα Ηλικία:</label>
+                            <input type="number" id="current_age" name="current_age" min="18" max="75" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="insurance_years">Έτη Ασφάλισης:</label>
+                            <input type="number" id="insurance_years" name="insurance_years" min="0" max="50" required>
+                        </div>
                     </div>
-                    
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="heavy_work_years">Έτη Βαρέων Εργασιών:</label>
+                            <input type="number" id="heavy_work_years" name="heavy_work_years" min="0" max="50" value="0">
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="children">Αριθμός Παιδιών:</label>
+                            <input type="number" id="children" name="children" min="0" max="10" value="0">
+                        </div>
+                    </div>
+
                     <div class="form-group">
                         <label for="salary">Μέσος Μισθός (€):</label>
                         <input type="number" id="salary" name="salary" min="500" max="10000" step="100" value="1500" required>
@@ -258,6 +293,7 @@
                             <option value="ika">ΙΚΑ</option>
                             <option value="efka">ΕΦΚΑ</option>
                             <option value="oaee">ΟΑΕΕ</option>
+                            <option value="etaa">ΕΤΑΑ</option>
                             <option value="other">Άλλο</option>
                         </select>
                     </div>
@@ -274,24 +310,24 @@
             <h2 style="text-align: center; margin-bottom: 30px; color: #2c3e50;">🎯 Πλήρης Ανάλυση Σύνταξης</h2>
             <div class="features">
                 <div class="feature">
-                    <div class="feature-icon">💾</div>
-                    <h3>Αποθήκευση</h3>
-                    <p>Ιστορικό όλων των υπολογισμών</p>
+                    <div class="feature-icon">👨‍👩‍👧‍👦</div>
+                    <h3>Φύλο & Ηλικία</h3>
+                    <p>Διαφοροποιημένοι υπολογισμοί</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon">📊</div>
-                    <h3>Σύγκριση</h3>
-                    <p>Πολλαπλών σεναρίων</p>
+                    <div class="feature-icon">⚒️</div>
+                    <h3>Βαρέα Επαγγέλματα</h3>
+                    <p>Ειδικές προϋποθέσεις</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon">📑</div>
-                    <h3>PDF Reports</h3>
-                    <p>Αναλυτικές εκθέσεις</p>
+                    <div class="feature-icon">👶</div>
+                    <h3>Επιδόματα</h3>
+                    <p>Τέκνων & χαμηλής σύνταξης</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon">⚡</div>
-                    <h3>Άμεσα</h3>
-                    <p>Αποτελέσματα</p>
+                    <div class="feature-icon">📅</div>
+                    <h3>Συνταξιοδότηση</h3>
+                    <p>Πλήρης & πρόωρη</p>
                 </div>
             </div>
         </div>
