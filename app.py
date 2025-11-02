@@ -1,5 +1,6 @@
-# routes.py - ΜΟΝΟ routes, χωρίς create_app
-from flask import current_app as app
+from flask import Flask
+
+app = Flask(__name__)
 
 @app.route('/')
 def home():
@@ -12,3 +13,6 @@ def calculate():
 @app.route('/healthz')
 def health_check():
     return "OK", 200
+
+if __name__ == '__main__':
+    app.run(debug=True, host='0.0.0.0', port=8000)
