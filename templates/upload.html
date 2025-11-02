@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ανέβασμα Αρχείου - Συνταξιολόγος Pro</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh; 
+            padding: 20px;
+            color: #333;
+        }
+        .container { 
+            max-width: 800px; 
+            margin: 0 auto; 
+            background: white; 
+            border-radius: 15px; 
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .header { 
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white; 
+            padding: 30px; 
+            text-align: center;
+        }
+        .header h1 { 
+            font-size: 2.5em; 
+            margin-bottom: 10px;
+        }
+        .content { 
+            padding: 40px; 
+        }
+        .upload-area {
+            border: 3px dashed #3498db;
+            border-radius: 10px;
+            padding: 40px;
+            text-align: center;
+            background: #f8f9fa;
+            margin-bottom: 20px;
+        }
+        .upload-icon {
+            font-size: 4em;
+            color: #3498db;
+            margin-bottom: 20px;
+        }
+        .btn { 
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white; 
+            padding: 15px 30px; 
+            border: none; 
+            border-radius: 8px; 
+            font-size: 16px; 
+            font-weight: 600;
+            cursor: pointer; 
+            text-decoration: none;
+            display: inline-block;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin: 10px 5px;
+        }
+        .btn:hover { 
+            transform: translateY(-2px); 
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+        .file-info {
+            background: #e8f4fd;
+            padding: 20px;
+            border-radius: 10px;
+            margin-top: 20px;
+        }
+        .supported-formats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .format-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            text-align: center;
+            border-left: 4px solid #3498db;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📁 ΑΝΕΒΑΣΜΑ ΑΡΧΕΙΟΥ</h1>
+            <p>Επιλέξτε αρχείο για αυτόματο υπολογισμό σύνταξης</p>
+        </div>
+
+        <div class="content">
+            <form action="/upload" method="post" enctype="multipart/form-data">
+                <div class="upload-area">
+                    <div class="upload-icon">📤</div>
+                    <h3>Σύρετε και αφήστε το αρχείο σας εδώ</h3>
+                    <p style="margin: 15px 0; color: #666;">
+                        ή επιλέξτε από τον υπολογιστή σας
+                    </p>
+                    <input type="file" name="file" accept=".xlsx,.xls,.csv,.pdf,.json" 
+                           style="margin: 20px 0; padding: 10px;" required>
+                    <br>
+                    <button type="submit" class="btn">🚀 Υπολογισμός από Αρχείο</button>
+                </div>
+            </form>
+
+            <div class="file-info">
+                <h3>📋 Υποστηριζόμενες Μορφές:</h3>
+                <div class="supported-formats">
+                    <div class="format-card">
+                        <h4>📊 Excel</h4>
+                        <p>.xlsx, .xls</p>
+                    </div>
+                    <div class="format-card">
+                        <h4>📄 CSV</h4>
+                        <p>.csv</p>
+                    </div>
+                    <div class="format-card">
+                        <h4>📑 PDF</h4>
+                        <p>.pdf</p>
+                    </div>
+                    <div class="format-card">
+                        <h4>⚙️ JSON</h4>
+                        <p>.json</p>
+                    </div>
+                </div>
+            </div>
+
+            <div style="text-align: center; margin-top: 30px;">
+                <a href="/" class="btn">🏠 Αρχική Σελίδα</a>
+                <a href="/manual" class="btn">✍️ Χειροκίνητη Εισαγωγή</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

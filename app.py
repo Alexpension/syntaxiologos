@@ -4,6 +4,7 @@ from flask import Flask, render_template, request, flash, send_file, session
 from fpdf import FPDF
 from datetime import datetime
 from werkzeug.security import generate_password_hash, check_password_hash
+from file_processor import FileProcessor
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'your-secret-key-here-change-in-production'
@@ -11,19 +12,16 @@ app.config['DATABASE'] = 'pension_calculator.db'
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
-# Δημιουργία φακέλων
 os.makedirs('static/results', exist_ok=True)
+os.makedirs('uploads', exist_ok=True)
 
 def get_db_connection():
-    """Σύνδεση με τη βάση δεδομένων"""
     conn = sqlite3.connect(app.config['DATABASE'])
     conn.row_factory = sqlite3.Row
     return conn
 
 def init_db():
-    """Αρχικοποίηση βάσης δεδομένων"""
     conn = get_db_connection()
-    
     conn.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -33,7 +31,6 @@ def init_db():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
-    
     conn.execute('''
         CREATE TABLE IF NOT EXISTS calculations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -63,15 +60,12 @@ def init_db():
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
     ''')
-    
     conn.commit()
     conn.close()
 
 def calculate_retirement_age(birth_year, gender, heavy_work_years):
-    """Υπολογισμός ηλικίας συνταξιοδότησης"""
     if heavy_work_years >= 15:
-        return 58  # Βαρέα & ανθυγιεινά επαγγέλματα
-    
+        return 58
     if birth_year <= 1955:
         return 65 if gender == 'male' else 60
     elif birth_year <= 1965:
@@ -80,7 +74,6 @@ def calculate_retirement_age(birth_year, gender, heavy_work_years):
         return 67
 
 def calculate_replacement_rate(insurance_years, fund):
-    """Ποσοστό αντικατάστασης βάσει ετών ασφάλισης"""
     fund_rates = {
         'ika': {40: 0.80, 35: 0.70, 30: 0.60, 25: 0.50, 20: 0.45, 15: 0.40},
         'efka': {40: 0.80, 35: 0.70, 30: 0.60, 25: 0.50, 20: 0.45, 15: 0.40},
@@ -88,7 +81,6 @@ def calculate_replacement_rate(insurance_years, fund):
         'etaa': {40: 0.70, 35: 0.60, 30: 0.50, 25: 0.45, 20: 0.40, 15: 0.35},
         'other': {40: 0.75, 35: 0.65, 30: 0.55, 25: 0.45, 20: 0.40, 15: 0.35}
     }
-    
     rates = fund_rates.get(fund, fund_rates['ika'])
     for years_threshold, rate in sorted(rates.items(), reverse=True):
         if insurance_years >= years_threshold:
@@ -96,41 +88,33 @@ def calculate_replacement_rate(insurance_years, fund):
     return 0.25
 
 def check_full_pension_eligibility(current_age, insurance_years, retirement_age):
-    """Έλεγχος δικαιώματος πλήρους σύνταξης"""
     return (current_age >= retirement_age and insurance_years >= 15)
 
 def check_early_pension_eligibility(current_age, insurance_years, heavy_work_years):
-    """Έλεγχος δικαιώματος πρόωρης σύνταξης"""
     if heavy_work_years >= 15:
         return (current_age >= 55 and insurance_years >= 25)
     return (current_age >= 62 and insurance_years >= 35)
 
 def check_heavy_work_pension_eligibility(heavy_work_years):
-    """Έλεγχος δικαιώματος σύνταξης βαρέων εργασιών"""
     return heavy_work_years >= 15
 
 def calculate_national_pension(insurance_years, basic_pension):
-    """Υπολογισμός εθνικής σύνταξης"""
     if insurance_years >= 15:
-        return 384.0  # Βασικό ποσό εθνικής σύνταξης
+        return 384.0
     return 0.0
 
 def calculate_social_benefit(total_pension_before_benefits):
-    """Υπολογισμός επιδόματος χαμηλής σύνταξης"""
     if total_pension_before_benefits < 800:
         return 150.0
     return 0.0
 
 def calculate_children_benefit(children):
-    """Υπολογισμός επιδόματος τέκνων"""
-    return children * 50.0  # 50€ ανά παιδί
+    return children * 50.0
 
 def calculate_early_reduction(years_early):
-    """Υπολογισμός μείωσης για πρόωρη σύνταξη"""
-    return years_early * 0.06  # 6% μείωση ανά έτος
+    return years_early * 0.06
 
 def calculate_greek_pension(form_data):
-    """ΠΛΗΡΗΣ ΕΛΛΗΝΙΚΟΣ ΥΠΟΛΟΓΙΜΟΣ ΣΥΝΤΑΞΗΣ"""
     gender = form_data['gender']
     birth_year = int(form_data['birth_year'])
     current_age = int(form_data['current_age'])
@@ -140,30 +124,24 @@ def calculate_greek_pension(form_data):
     fund = form_data['fund']
     children = int(form_data.get('children', 0))
     
-    # Υπολογισμός ηλικίας συνταξιοδότησης
     retirement_age = calculate_retirement_age(birth_year, gender, heavy_work_years)
     years_remaining = max(0, retirement_age - current_age)
     
-    # Έλεγχοι δικαιώματος
     eligible_for_full = check_full_pension_eligibility(current_age, insurance_years, retirement_age)
     eligible_for_early = check_early_pension_eligibility(current_age, insurance_years, heavy_work_years)
     eligible_for_heavy = check_heavy_work_pension_eligibility(heavy_work_years)
     
-    # Υπολογισμός βασικής σύνταξης
     replacement_rate = calculate_replacement_rate(insurance_years, fund)
     basic_pension = salary * replacement_rate
     
-    # Επιδόματα
     national_pension = calculate_national_pension(insurance_years, basic_pension)
     social_benefit = calculate_social_benefit(basic_pension + national_pension)
     children_benefit = calculate_children_benefit(children)
     
-    # Μείωση για πρόωρη σύνταξη
     if eligible_for_early and not eligible_for_full:
         reduction_rate = calculate_early_reduction(years_remaining)
         basic_pension *= (1 - reduction_rate)
     
-    # Συνολική σύνταξη
     total_pension = basic_pension + national_pension + social_benefit + children_benefit
     
     return {
@@ -192,15 +170,12 @@ def calculate_greek_pension(form_data):
     }
 
 def create_pdf_report(pension_data):
-    """Δημιουργία PDF report"""
     pdf = FPDF()
     pdf.add_page()
-    
     pdf.set_font('Arial', 'B', 16)
     pdf.cell(200, 10, 'SYNTAXIOLOGOS - PENSION REPORT', 0, 1, 'C')
     pdf.ln(10)
     
-    # Στοιχεία Χρήστη
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(200, 10, 'USER DATA:', 0, 1)
     pdf.set_font('Arial', '', 11)
@@ -214,8 +189,6 @@ def create_pdf_report(pension_data):
     pdf.cell(200, 8, f"Children: {pension_data['children']}", 0, 1)
     
     pdf.ln(10)
-    
-    # Αποτελέσματα
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(200, 10, 'PENSION CALCULATION:', 0, 1)
     pdf.set_font('Arial', '', 11)
@@ -229,8 +202,6 @@ def create_pdf_report(pension_data):
     pdf.cell(200, 8, f"Years Remaining: {pension_data['years_remaining']}", 0, 1)
     
     pdf.ln(10)
-    
-    # Δικαιώματα
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(200, 10, 'ELIGIBILITY:', 0, 1)
     pdf.set_font('Arial', '', 11)
@@ -247,9 +218,7 @@ def create_pdf_report(pension_data):
     return filename
 
 def save_calculation_to_db(user_id, pension_data):
-    """Αποθήκευση υπολογισμού στη βάση"""
     conn = get_db_connection()
-    
     conn.execute('''
         INSERT INTO calculations 
         (user_id, gender, birth_year, current_age, insurance_years, heavy_work_years, 
@@ -266,15 +235,12 @@ def save_calculation_to_db(user_id, pension_data):
         pension_data['years_remaining'], pension_data['eligible_for_early'], pension_data['eligible_for_heavy'],
         pension_data['required_years_full'], pension_data['required_years_early'], pension_data['required_heavy_years']
     ))
-    
     conn.commit()
     calculation_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
     conn.close()
-    
     return calculation_id
 
 def get_user_calculations(user_id):
-    """Λήψη ιστορικού υπολογισμών χρήστη"""
     conn = get_db_connection()
     calculations = conn.execute('''
         SELECT * FROM calculations 
@@ -291,12 +257,9 @@ def home():
 
 @app.route('/manual', methods=['GET', 'POST'])
 def manual_calculation():
-    """Χειροκίνητη εισαγωγή δεδομένων"""
     if request.method == 'GET':
         return render_template('index.html')
-        
     try:
-        # Απλό form processing χωρίς file upload
         form_data = {
             'gender': request.form.get('gender', 'male'),
             'birth_year': request.form.get('birth_year', '1980'),
@@ -307,8 +270,6 @@ def manual_calculation():
             'fund': request.form.get('fund', 'ika'),
             'children': request.form.get('children', '0')
         }
-        
-        # Convert to proper types
         form_data['birth_year'] = int(form_data['birth_year'])
         form_data['current_age'] = int(form_data['current_age'])
         form_data['insurance_years'] = int(form_data['insurance_years'])
@@ -322,13 +283,39 @@ def manual_calculation():
         if 'user_id' in session:
             save_calculation_to_db(session['user_id'], pension_data)
         
-        return render_template('results.html', 
-                             pension_data=pension_data, 
-                             pdf_report=pdf_report)
-                             
+        return render_template('results.html', pension_data=pension_data, pdf_report=pdf_report)
     except Exception as e:
         flash(f'Σφάλμα υπολογισμού: {str(e)}')
         return render_template('index.html')
+
+@app.route('/upload', methods=['GET', 'POST'])
+def upload_file():
+    if request.method == 'GET':
+        return render_template('upload.html')
+    try:
+        if 'file' not in request.files:
+            flash('Δεν επιλέχθηκε αρχείο')
+            return render_template('upload.html')
+        
+        file = request.files['file']
+        if file.filename == '':
+            flash('Δεν επιλέχθηκε αρχείο')
+            return render_template('upload.html')
+        
+        if file:
+            file_content = file.read()
+            extracted_data = FileProcessor.process_file(file_content, file.filename)
+            
+            pension_data = calculate_greek_pension(extracted_data)
+            pdf_report = create_pdf_report(pension_data)
+            
+            if 'user_id' in session:
+                save_calculation_to_db(session['user_id'], pension_data)
+            
+            return render_template('results.html', pension_data=pension_data, pdf_report=pdf_report)
+    except Exception as e:
+        flash(f'Σφάλμα επεξεργασίας αρχείου: {str(e)}')
+        return render_template('upload.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -336,31 +323,24 @@ def register():
         email = request.form['email']
         password = request.form['password']
         full_name = request.form.get('full_name', '')
-        
         try:
             conn = get_db_connection()
             existing_user = conn.execute('SELECT id FROM users WHERE email = ?', (email,)).fetchone()
-            
             if existing_user:
                 flash('Το email χρησιμοποιείται ήδη')
                 return render_template('register.html')
-            
             password_hash = generate_password_hash(password)
             conn.execute('INSERT INTO users (email, password_hash, full_name) VALUES (?, ?, ?)', (email, password_hash, full_name))
             conn.commit()
-            
             user_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
             conn.close()
-            
             session['user_id'] = user_id
             session['user_email'] = email
             flash('Επιτυχής εγγραφή!')
             return render_template('index.html')
-            
         except Exception as e:
             flash(f'Σφάλμα εγγραφής: {str(e)}')
             return render_template('register.html')
-    
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -368,12 +348,10 @@ def login():
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
-        
         try:
             conn = get_db_connection()
             user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
             conn.close()
-            
             if user and check_password_hash(user['password_hash'], password):
                 session['user_id'] = user['id']
                 session['user_email'] = user['email']
@@ -382,11 +360,9 @@ def login():
             else:
                 flash('Λάθος email ή κωδικός')
                 return render_template('login.html')
-                
         except Exception as e:
             flash(f'Σφάλμα σύνδεσης: {str(e)}')
             return render_template('login.html')
-    
     return render_template('login.html')
 
 @app.route('/logout')
@@ -400,7 +376,6 @@ def history():
     if 'user_id' not in session:
         flash('Παρακαλώ συνδεθείτε για να δείτε το ιστορικό')
         return render_template('login.html')
-    
     calculations = get_user_calculations(session['user_id'])
     return render_template('history.html', calculations=calculations)
 
@@ -412,7 +387,6 @@ def download_file(filename):
 def health_check():
     return "OK", 200
 
-# Fix για Render - χρησιμοποιούμε PORT από environment variable
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 8000))
     app.run(debug=True, host='0.0.0.0', port=port)
