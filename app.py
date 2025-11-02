@@ -317,6 +317,11 @@ def upload_file():
         flash(f'Σφάλμα επεξεργασίας αρχείου: {str(e)}')
         return render_template('upload.html')
 
+@app.route('/csv-template')
+def csv_template():
+    """Σελίδα με το πρότυπο CSV"""
+    return render_template('csv_template.html')
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'POST':
