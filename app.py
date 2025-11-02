@@ -1,7 +1,5 @@
 import os
-import sqlite3
 from flask import Flask, render_template, request, flash, send_file
-from werkzeug.utils import secure_filename
 from fpdf import FPDF
 from datetime import datetime
 
@@ -11,24 +9,7 @@ app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 
 # Δημιουργία φακέλων
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs('static/results', exist_ok=True)
-
-ALLOWED_EXTENSIONS = {'pdf', 'png', 'jpg', 'jpeg'}
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-def parse_insurance_data(text):
-    """Ανάλυση δεδομένων - προσομοίωση OCR"""
-    data = {
-        'amka': 'Αναγνωρίστηκε από αρχείο',
-        'employer': 'Αναγνωρίστηκε από αρχείο', 
-        'insurance_years': 25,
-        'salary': 1500.0,
-        'last_5_years_avg': 1450.0
-    }
-    return data
 
 def calculate_real_pension(insurance_data):
     """ΠΡΑΓΜΑΤΙΚΟΣ υπολογισμός σύνταξης"""
@@ -103,52 +84,6 @@ def create_pdf_report(insurance_data, pension_data):
 def home():
     return render_template('index.html')
 
-@app.route('/upload', methods=['POST'])
-def upload_file():
-    if 'file' not in request.files:
-        flash('Δεν επιλέχθηκε αρχείο')
-        return render_template('index.html')
-    
-    file = request.files['file']
-    if file.filename == '':
-        flash('Δεν επιλέχθηκε αρχείο')
-        return render_template('index.html')
-    
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(filepath)
-        
-        try:
-            # Προσομοίωση OCR - σταθερά δεδομένα για τώρα
-            extracted_text = "Προσομοίωση OCR - Τα δεδομένα θα αναγνωριστούν στο Render"
-            
-            # Ανάλυση δεδομένων
-            insurance_data = parse_insurance_data(extracted_text)
-            
-            # Υπολογισμός σύνταξης
-            pension_data = calculate_real_pension(insurance_data)
-            
-            # Δημιουργία PDF report
-            pdf_report = create_pdf_report(insurance_data, pension_data)
-            
-            # Καθαρισμός
-            os.remove(filepath)
-            
-            return render_template('results.html', 
-                                 insurance_data=insurance_data,
-                                 pension_data=pension_data,
-                                 pdf_report=pdf_report,
-                                 extracted_text=extracted_text)
-            
-        except Exception as e:
-            os.remove(filepath)
-            flash(f'Σφάλμα επεξεργασίας: {str(e)}')
-            return render_template('index.html')
-    
-    flash('Μη επιτρεπτός τύπος αρχείου')
-    return render_template('index.html')
-
 @app.route('/manual', methods=['POST'])
 def manual_calculation():
     """Χειροκίνητη εισαγωγή δεδομένων"""
@@ -156,10 +91,11 @@ def manual_calculation():
         age = int(request.form['age'])
         years = int(request.form['years'])
         salary = float(request.form.get('salary', 1500))
+        fund = request.form.get('fund', 'ika')
         
         insurance_data = {
-            'amka': 'Χειροκίνητη εισαγωγή',
-            'employer': 'Χειροκίνητη εισαγωγή',
+            'amka': f'Χειροκίνητη εισαγωγή - {fund.upper()}',
+            'employer': f'Ταμείο {fund.upper()}',
             'insurance_years': years,
             'salary': salary,
             'last_5_years_avg': salary
