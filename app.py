@@ -11,19 +11,8 @@ app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 # Δημιουργία φακέλων
 os.makedirs('static/results', exist_ok=True)
 
-class GreekPDF(FPDF):
-    def header(self):
-        self.set_font('Arial', 'B', 16)
-        self.cell(0, 10, 'ΣΥΝΤΑΞΙΟΛΟΓΟΣ - ΑΝΑΛΥΤΙΚΗ ΕΚΘΕΣΗ', 0, 1, 'C')
-        self.ln(10)
-    
-    def footer(self):
-        self.set_y(-15)
-        self.set_font('Arial', 'I', 8)
-        self.cell(0, 10, f'Σελίδα {self.page_no()}', 0, 0, 'C')
-
 def calculate_real_pension(insurance_data):
-    """ΠΡΑΓΜΑΤΙΚΟΣ υπολογισμός σύνταξης"""
+    """REAL pension calculation"""
     years = insurance_data['insurance_years']
     avg_salary = insurance_data['last_5_years_avg']
     
@@ -59,33 +48,38 @@ def calculate_real_pension(insurance_data):
     }
 
 def create_pdf_report(insurance_data, pension_data):
-    """Δημιουργία PDF report με σωστό encoding"""
-    pdf = GreekPDF()
+    """PDF report - ONLY ASCII"""
+    pdf = FPDF()
     pdf.add_page()
     
-    # Στοιχεία Ασφάλισης
+    # Title - ONLY ASCII
+    pdf.set_font('Arial', 'B', 16)
+    pdf.cell(200, 10, 'SYNTAXIOLOGOS - PENSION REPORT', 0, 1, 'C')
+    pdf.ln(10)
+    
+    # Insurance Data
     pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 10, 'ΣΤΟΙΧΕΙΑ ΑΣΦΑΛΙΣΗΣ:', 0, 1)
+    pdf.cell(200, 10, 'INSURANCE DATA:', 0, 1)
     pdf.set_font('Arial', '', 11)
-    pdf.cell(0, 8, f"AMKA: {insurance_data['amka']}", 0, 1)
-    pdf.cell(0, 8, f"Εργοδοτης: {insurance_data['employer']}", 0, 1)
-    pdf.cell(0, 8, f"Ετη Ασφαλισης: {insurance_data['insurance_years']}", 0, 1)
-    pdf.cell(0, 8, f"Μεσος Μισθος: {insurance_data['last_5_years_avg']} EUR", 0, 1)
+    pdf.cell(200, 8, f"AMKA: {insurance_data['amka']}", 0, 1)
+    pdf.cell(200, 8, f"Employer: {insurance_data['employer']}", 0, 1)
+    pdf.cell(200, 8, f"Insurance Years: {insurance_data['insurance_years']}", 0, 1)
+    pdf.cell(200, 8, f"Avg Salary: {insurance_data['last_5_years_avg']} EUR", 0, 1)
     
     pdf.ln(10)
     
-    # Αποτελέσματα Υπολογισμού
+    # Calculation Results
     pdf.set_font('Arial', 'B', 12)
-    pdf.cell(0, 10, 'ΑΠΟΤΕΛΕΣΜΑΤΑ ΥΠΟΛΟΓΙΣΜΟΥ:', 0, 1)
+    pdf.cell(200, 10, 'PENSION CALCULATION:', 0, 1)
     pdf.set_font('Arial', '', 11)
-    pdf.cell(0, 8, f"Βασικη Συνταξη: {pension_data['basic_pension']} EUR", 0, 1)
-    pdf.cell(0, 8, f"Επιδομα: {pension_data['social_benefit']} EUR", 0, 1)
-    pdf.cell(0, 8, f"ΣΥΝΟΛΙΚΗ ΣΥΝΤΑΞΗ: {pension_data['total_pension']} EUR", 0, 1)
-    pdf.cell(0, 8, f"Ποσοστο Αντικαταστασης: {pension_data['replacement_rate']}%", 0, 1)
+    pdf.cell(200, 8, f"Basic Pension: {pension_data['basic_pension']} EUR", 0, 1)
+    pdf.cell(200, 8, f"Social Benefit: {pension_data['social_benefit']} EUR", 0, 1)
+    pdf.cell(200, 8, f"TOTAL PENSION: {pension_data['total_pension']} EUR", 0, 1)
+    pdf.cell(200, 8, f"Replacement Rate: {pension_data['replacement_rate']}%", 0, 1)
     
     pdf.ln(15)
     pdf.set_font('Arial', 'I', 10)
-    pdf.cell(0, 8, f"Ημερομηνια υπολογισμου: {datetime.now().strftime('%d/%m/%Y %H:%M')}", 0, 1)
+    pdf.cell(200, 8, f"Calculation Date: {datetime.now().strftime('%d/%m/%Y %H:%M')}", 0, 1)
     
     filename = f"static/results/pension_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     pdf.output(filename)
@@ -97,7 +91,7 @@ def home():
 
 @app.route('/manual', methods=['POST'])
 def manual_calculation():
-    """Χειροκίνητη εισαγωγή δεδομένων"""
+    """Manual data entry"""
     try:
         age = int(request.form['age'])
         years = int(request.form['years'])
@@ -105,8 +99,8 @@ def manual_calculation():
         fund = request.form.get('fund', 'ika')
         
         insurance_data = {
-            'amka': f'Manual - {fund.upper()}',
-            'employer': f'Tameio {fund.upper()}',
+            'amka': f'Manual-{fund.upper()}',
+            'employer': f'Fund-{fund.upper()}',
             'insurance_years': years,
             'salary': salary,
             'last_5_years_avg': salary
@@ -121,7 +115,7 @@ def manual_calculation():
                              pdf_report=pdf_report)
                              
     except Exception as e:
-        flash(f'Σφαλμα υπολογισμου: {str(e)}')
+        flash(f'Calculation Error: {str(e)}')
         return render_template('index.html')
 
 @app.route('/download/<filename>')

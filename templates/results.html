@@ -40,7 +40,7 @@
         @media (max-width: 768px) {
             .content { grid-template-columns: 1fr; }
         }
-        .results-card, .details-card, .ocr-card {
+        .results-card, .details-card {
             background: #f8f9fa; 
             padding: 30px; 
             border-radius: 10px; 
@@ -48,7 +48,6 @@
         }
         .results-card { border-left-color: #27ae60; }
         .details-card { border-left-color: #e74c3c; }
-        .ocr-card { border-left-color: #f39c12; }
         .card-title { 
             color: #2c3e50; 
             margin-bottom: 20px; 
@@ -130,17 +129,6 @@
             margin-top: 30px; 
             padding-top: 30px; 
             border-top: 1px solid #e1e8ed;
-        }
-        .ocr-text {
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            max-height: 300px;
-            overflow-y: auto;
-            font-family: monospace;
-            font-size: 0.9em;
-            line-height: 1.4;
-            border: 1px solid #e1e8ed;
         }
         .info-grid {
             display: grid;
@@ -235,20 +223,8 @@
                 </div>
             </div>
 
-            <!-- Δεξιά: OCR Data & Actions -->
+            <!-- Δεξιά: Actions & Info -->
             <div>
-                {% if extracted_text %}
-                <div class="ocr-card">
-                    <h2 class="card-title">🔍 ΑΝΑΓΝΩΡΙΣΜΕΝΑ ΔΕΔΟΜΕΝΑ</h2>
-                    <p style="margin-bottom: 15px; color: #7f8c8d;">
-                        Κείμενο που αναγνωρίστηκε από το αρχείο:
-                    </p>
-                    <div class="ocr-text">
-                        {{ extracted_text }}
-                    </div>
-                </div>
-                {% endif %}
-
                 <div class="highlight">
                     <h3>📈 Ανάλυση Υπολογισμού</h3>
                     <p style="margin: 10px 0;">
@@ -262,11 +238,21 @@
 
                 <div class="actions">
                     <a href="{{ pdf_report }}" class="btn btn-download" download>
-                        📥 Λήψη PDF Report
+                        📥 Download PDF Report (English)
                     </a>
                     <a href="/" class="btn btn-new">
                         🆕 Νέος Υπολογισμός
                     </a>
+                </div>
+
+                <div style="background: #e8f4fd; padding: 20px; border-radius: 10px; margin-top: 20px;">
+                    <h4 style="color: #2c3e50; margin-bottom: 10px;">ℹ️ Σημαντικές Πληροφορίες</h4>
+                    <p style="color: #555; margin-bottom: 10px;">
+                        <strong>PDF Report:</strong> Το αναλυτικό report είναι στα Αγγλικά για να αποφευχθούν προβλήματα encoding.
+                    </p>
+                    <p style="color: #555; margin: 0;">
+                        <strong>Υπολογισμός:</strong> Βασίζεται στους επίσημους τύπους ΕΦΚΑ/ΙΚΑ.
+                    </p>
                 </div>
             </div>
         </div>
