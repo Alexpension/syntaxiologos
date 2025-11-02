@@ -24,7 +24,6 @@ def init_db():
     """Αρχικοποίηση βάσης δεδομένων"""
     conn = get_db_connection()
     
-    # Πίνακας χρηστών
     conn.execute('''
         CREATE TABLE IF NOT EXISTS users (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -35,19 +34,31 @@ def init_db():
         )
     ''')
     
-    # Πίνακας υπολογισμών
     conn.execute('''
         CREATE TABLE IF NOT EXISTS calculations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             user_id INTEGER,
-            age INTEGER NOT NULL,
+            gender TEXT NOT NULL,
+            birth_year INTEGER NOT NULL,
+            current_age INTEGER NOT NULL,
             insurance_years INTEGER NOT NULL,
+            heavy_work_years INTEGER DEFAULT 0,
             salary REAL NOT NULL,
             fund TEXT NOT NULL,
+            children INTEGER DEFAULT 0,
             basic_pension REAL NOT NULL,
+            national_pension REAL NOT NULL,
             social_benefit REAL NOT NULL,
+            children_benefit REAL NOT NULL,
             total_pension REAL NOT NULL,
             replacement_rate REAL NOT NULL,
+            retirement_age INTEGER NOT NULL,
+            years_remaining INTEGER NOT NULL,
+            eligible_for_early BOOLEAN NOT NULL,
+            eligible_for_heavy BOOLEAN NOT NULL,
+            required_years_full INTEGER NOT NULL,
+            required_years_early INTEGER NOT NULL,
+            required_heavy_years INTEGER NOT NULL,
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (user_id) REFERENCES users (id)
         )
@@ -56,71 +67,176 @@ def init_db():
     conn.commit()
     conn.close()
 
-def calculate_real_pension(insurance_data):
-    """ΠΡΑΓΜΑΤΙΚΟΣ υπολογισμός σύνταξης"""
-    years = insurance_data['insurance_years']
-    avg_salary = insurance_data['last_5_years_avg']
+def calculate_retirement_age(birth_year, gender, heavy_work_years):
+    """Υπολογισμός ηλικίας συνταξιοδότησης"""
+    if heavy_work_years >= 15:
+        return 58  # Βαρέα & ανθυγιεινά επαγγέλματα
     
-    if years >= 40:
-        replacement_rate = 0.80
-    elif years >= 35:
-        replacement_rate = 0.70
-    elif years >= 30:
-        replacement_rate = 0.60
-    elif years >= 25:
-        replacement_rate = 0.50
-    elif years >= 20:
-        replacement_rate = 0.45
-    elif years >= 15:
-        replacement_rate = 0.40
+    if birth_year <= 1955:
+        return 65 if gender == 'male' else 60
+    elif birth_year <= 1965:
+        return 67 if gender == 'male' else 62
     else:
-        replacement_rate = 0.35
+        return 67
+
+def calculate_replacement_rate(insurance_years, fund):
+    """Ποσοστό αντικατάστασης βάσει ετών ασφάλισης"""
+    fund_rates = {
+        'ika': {40: 0.80, 35: 0.70, 30: 0.60, 25: 0.50, 20: 0.45, 15: 0.40},
+        'efka': {40: 0.80, 35: 0.70, 30: 0.60, 25: 0.50, 20: 0.45, 15: 0.40},
+        'oaee': {40: 0.65, 35: 0.55, 30: 0.45, 25: 0.40, 20: 0.35, 15: 0.30},
+        'etaa': {40: 0.70, 35: 0.60, 30: 0.50, 25: 0.45, 20: 0.40, 15: 0.35},
+        'other': {40: 0.75, 35: 0.65, 30: 0.55, 25: 0.45, 20: 0.40, 15: 0.35}
+    }
     
-    basic_pension = avg_salary * replacement_rate
+    rates = fund_rates.get(fund, fund_rates['ika'])
+    for years_threshold, rate in sorted(rates.items(), reverse=True):
+        if insurance_years >= years_threshold:
+            return rate
+    return 0.25
+
+def check_full_pension_eligibility(current_age, insurance_years, retirement_age):
+    """Έλεγχος δικαιώματος πλήρους σύνταξης"""
+    return (current_age >= retirement_age and insurance_years >= 15)
+
+def check_early_pension_eligibility(current_age, insurance_years, heavy_work_years):
+    """Έλεγχος δικαιώματος πρόωρης σύνταξης"""
+    if heavy_work_years >= 15:
+        return (current_age >= 55 and insurance_years >= 25)
+    return (current_age >= 62 and insurance_years >= 35)
+
+def check_heavy_work_pension_eligibility(heavy_work_years):
+    """Έλεγχος δικαιώματος σύνταξης βαρέων εργασιών"""
+    return heavy_work_years >= 15
+
+def calculate_national_pension(insurance_years, basic_pension):
+    """Υπολογισμός εθνικής σύνταξης"""
+    if insurance_years >= 15:
+        return 384.0  # Βασικό ποσό εθνικής σύνταξης
+    return 0.0
+
+def calculate_social_benefit(total_pension_before_benefits):
+    """Υπολογισμός επιδόματος χαμηλής σύνταξης"""
+    if total_pension_before_benefits < 800:
+        return 150.0
+    return 0.0
+
+def calculate_children_benefit(children):
+    """Υπολογισμός επιδόματος τέκνων"""
+    return children * 50.0  # 50€ ανά παιδί
+
+def calculate_early_reduction(years_early):
+    """Υπολογισμός μείωσης για πρόωρη σύνταξη"""
+    return years_early * 0.06  # 6% μείωση ανά έτος
+
+def calculate_greek_pension(form_data):
+    """ΠΛΗΡΗΣ ΕΛΛΗΝΙΚΟΣ ΥΠΟΛΟΓΙΣΜΟΣ ΣΥΝΤΑΞΗΣ"""
+    gender = form_data['gender']
+    birth_year = int(form_data['birth_year'])
+    current_age = int(form_data['current_age'])
+    insurance_years = int(form_data['insurance_years'])
+    heavy_work_years = int(form_data.get('heavy_work_years', 0))
+    salary = float(form_data['salary'])
+    fund = form_data['fund']
+    children = int(form_data.get('children', 0))
     
-    if basic_pension < 800:
-        social_benefit = 150
-    else:
-        social_benefit = 0
+    # Υπολογισμός ηλικίας συνταξιοδότησης
+    retirement_age = calculate_retirement_age(birth_year, gender, heavy_work_years)
+    years_remaining = max(0, retirement_age - current_age)
     
-    total_pension = basic_pension + social_benefit
+    # Έλεγχοι δικαιώματος
+    eligible_for_full = check_full_pension_eligibility(current_age, insurance_years, retirement_age)
+    eligible_for_early = check_early_pension_eligibility(current_age, insurance_years, heavy_work_years)
+    eligible_for_heavy = check_heavy_work_pension_eligibility(heavy_work_years)
+    
+    # Υπολογισμός βασικής σύνταξης
+    replacement_rate = calculate_replacement_rate(insurance_years, fund)
+    basic_pension = salary * replacement_rate
+    
+    # Επιδόματα
+    national_pension = calculate_national_pension(insurance_years, basic_pension)
+    social_benefit = calculate_social_benefit(basic_pension + national_pension)
+    children_benefit = calculate_children_benefit(children)
+    
+    # Μείωση για πρόωρη σύνταξη
+    if eligible_for_early and not eligible_for_full:
+        reduction_rate = calculate_early_reduction(years_remaining)
+        basic_pension *= (1 - reduction_rate)
+    
+    # Συνολική σύνταξη
+    total_pension = basic_pension + national_pension + social_benefit + children_benefit
     
     return {
         'basic_pension': round(basic_pension, 2),
-        'social_benefit': social_benefit,
+        'national_pension': round(national_pension, 2),
+        'social_benefit': round(social_benefit, 2),
+        'children_benefit': round(children_benefit, 2),
         'total_pension': round(total_pension, 2),
-        'replacement_rate': replacement_rate * 100
+        'replacement_rate': round(replacement_rate * 100, 1),
+        'retirement_age': retirement_age,
+        'years_remaining': years_remaining,
+        'eligible_for_full': eligible_for_full,
+        'eligible_for_early': eligible_for_early,
+        'eligible_for_heavy': eligible_for_heavy,
+        'required_years_full': max(0, 15 - insurance_years),
+        'required_years_early': max(0, 35 - insurance_years),
+        'required_heavy_years': max(0, 15 - heavy_work_years),
+        'gender': gender,
+        'birth_year': birth_year,
+        'current_age': current_age,
+        'insurance_years': insurance_years,
+        'heavy_work_years': heavy_work_years,
+        'salary': salary,
+        'fund': fund,
+        'children': children
     }
 
-def create_pdf_report(insurance_data, pension_data):
-    """PDF report - ONLY ASCII"""
+def create_pdf_report(pension_data):
+    """Δημιουργία PDF report"""
     pdf = FPDF()
     pdf.add_page()
     
-    # Title - ONLY ASCII
     pdf.set_font('Arial', 'B', 16)
     pdf.cell(200, 10, 'SYNTAXIOLOGOS - PENSION REPORT', 0, 1, 'C')
     pdf.ln(10)
     
-    # Insurance Data
+    # Στοιχεία Χρήστη
     pdf.set_font('Arial', 'B', 12)
-    pdf.cell(200, 10, 'INSURANCE DATA:', 0, 1)
+    pdf.cell(200, 10, 'USER DATA:', 0, 1)
     pdf.set_font('Arial', '', 11)
-    pdf.cell(200, 8, f"AMKA: {insurance_data['amka']}", 0, 1)
-    pdf.cell(200, 8, f"Employer: {insurance_data['employer']}", 0, 1)
-    pdf.cell(200, 8, f"Insurance Years: {insurance_data['insurance_years']}", 0, 1)
-    pdf.cell(200, 8, f"Avg Salary: {insurance_data['last_5_years_avg']} EUR", 0, 1)
+    pdf.cell(200, 8, f"Gender: {pension_data['gender']}", 0, 1)
+    pdf.cell(200, 8, f"Birth Year: {pension_data['birth_year']}", 0, 1)
+    pdf.cell(200, 8, f"Current Age: {pension_data['current_age']}", 0, 1)
+    pdf.cell(200, 8, f"Insurance Years: {pension_data['insurance_years']}", 0, 1)
+    pdf.cell(200, 8, f"Heavy Work Years: {pension_data['heavy_work_years']}", 0, 1)
+    pdf.cell(200, 8, f"Salary: {pension_data['salary']} EUR", 0, 1)
+    pdf.cell(200, 8, f"Fund: {pension_data['fund']}", 0, 1)
+    pdf.cell(200, 8, f"Children: {pension_data['children']}", 0, 1)
     
     pdf.ln(10)
     
-    # Calculation Results
+    # Αποτελέσματα
     pdf.set_font('Arial', 'B', 12)
     pdf.cell(200, 10, 'PENSION CALCULATION:', 0, 1)
     pdf.set_font('Arial', '', 11)
     pdf.cell(200, 8, f"Basic Pension: {pension_data['basic_pension']} EUR", 0, 1)
+    pdf.cell(200, 8, f"National Pension: {pension_data['national_pension']} EUR", 0, 1)
     pdf.cell(200, 8, f"Social Benefit: {pension_data['social_benefit']} EUR", 0, 1)
+    pdf.cell(200, 8, f"Children Benefit: {pension_data['children_benefit']} EUR", 0, 1)
     pdf.cell(200, 8, f"TOTAL PENSION: {pension_data['total_pension']} EUR", 0, 1)
     pdf.cell(200, 8, f"Replacement Rate: {pension_data['replacement_rate']}%", 0, 1)
+    pdf.cell(200, 8, f"Retirement Age: {pension_data['retirement_age']}", 0, 1)
+    pdf.cell(200, 8, f"Years Remaining: {pension_data['years_remaining']}", 0, 1)
+    
+    pdf.ln(10)
+    
+    # Δικαιώματα
+    pdf.set_font('Arial', 'B', 12)
+    pdf.cell(200, 10, 'ELIGIBILITY:', 0, 1)
+    pdf.set_font('Arial', '', 11)
+    pdf.cell(200, 8, f"Full Pension: {'YES' if pension_data['eligible_for_full'] else 'NO'}", 0, 1)
+    pdf.cell(200, 8, f"Early Pension: {'YES' if pension_data['eligible_for_early'] else 'NO'}", 0, 1)
+    pdf.cell(200, 8, f"Heavy Work Pension: {'YES' if pension_data['eligible_for_heavy'] else 'NO'}", 0, 1)
     
     pdf.ln(15)
     pdf.set_font('Arial', 'I', 10)
@@ -130,24 +246,25 @@ def create_pdf_report(insurance_data, pension_data):
     pdf.output(filename)
     return filename
 
-def save_calculation_to_db(user_id, form_data, pension_data):
+def save_calculation_to_db(user_id, pension_data):
     """Αποθήκευση υπολογισμού στη βάση"""
     conn = get_db_connection()
     
     conn.execute('''
         INSERT INTO calculations 
-        (user_id, age, insurance_years, salary, fund, basic_pension, social_benefit, total_pension, replacement_rate)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (user_id, gender, birth_year, current_age, insurance_years, heavy_work_years, 
+         salary, fund, children, basic_pension, national_pension, social_benefit, 
+         children_benefit, total_pension, replacement_rate, retirement_age, years_remaining,
+         eligible_for_early, eligible_for_heavy, required_years_full, required_years_early, required_heavy_years)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ''', (
-        user_id,
-        form_data['age'],
-        form_data['years'],
-        form_data['salary'],
-        form_data['fund'],
-        pension_data['basic_pension'],
-        pension_data['social_benefit'],
-        pension_data['total_pension'],
-        pension_data['replacement_rate']
+        user_id, pension_data['gender'], pension_data['birth_year'], pension_data['current_age'],
+        pension_data['insurance_years'], pension_data['heavy_work_years'], pension_data['salary'],
+        pension_data['fund'], pension_data['children'], pension_data['basic_pension'],
+        pension_data['national_pension'], pension_data['social_benefit'], pension_data['children_benefit'],
+        pension_data['total_pension'], pension_data['replacement_rate'], pension_data['retirement_age'],
+        pension_data['years_remaining'], pension_data['eligible_for_early'], pension_data['eligible_for_heavy'],
+        pension_data['required_years_full'], pension_data['required_years_early'], pension_data['required_heavy_years']
     ))
     
     conn.commit()
@@ -159,14 +276,12 @@ def save_calculation_to_db(user_id, form_data, pension_data):
 def get_user_calculations(user_id):
     """Λήψη ιστορικού υπολογισμών χρήστη"""
     conn = get_db_connection()
-    
     calculations = conn.execute('''
         SELECT * FROM calculations 
         WHERE user_id = ? 
         ORDER BY created_at DESC
         LIMIT 10
     ''', (user_id,)).fetchall()
-    
     conn.close()
     return calculations
 
@@ -174,47 +289,47 @@ def get_user_calculations(user_id):
 def home():
     return render_template('index.html')
 
-@app.route('/manual', methods=['POST'])
+@app.route('/manual', methods=['GET', 'POST'])
 def manual_calculation():
     """Χειροκίνητη εισαγωγή δεδομένων"""
-    try:
-        age = int(request.form['age'])
-        years = int(request.form['years'])
-        salary = float(request.form.get('salary', 1500))
-        fund = request.form.get('fund', 'ika')
+    if request.method == 'GET':
+        return render_template('index.html')
         
-        insurance_data = {
-            'amka': f'Manual-{fund.upper()}',
-            'employer': f'Fund-{fund.upper()}',
-            'insurance_years': years,
-            'salary': salary,
-            'last_5_years_avg': salary
+    try:
+        # Απλό form processing χωρίς file upload
+        form_data = {
+            'gender': request.form.get('gender', 'male'),
+            'birth_year': request.form.get('birth_year', '1980'),
+            'current_age': request.form.get('current_age', '40'),
+            'insurance_years': request.form.get('insurance_years', '20'),
+            'heavy_work_years': request.form.get('heavy_work_years', '0'),
+            'salary': request.form.get('salary', '1500'),
+            'fund': request.form.get('fund', 'ika'),
+            'children': request.form.get('children', '0')
         }
         
-        pension_data = calculate_real_pension(insurance_data)
-        pdf_report = create_pdf_report(insurance_data, pension_data)
+        # Convert to proper types
+        form_data['birth_year'] = int(form_data['birth_year'])
+        form_data['current_age'] = int(form_data['current_age'])
+        form_data['insurance_years'] = int(form_data['insurance_years'])
+        form_data['heavy_work_years'] = int(form_data['heavy_work_years'])
+        form_data['salary'] = float(form_data['salary'])
+        form_data['children'] = int(form_data['children'])
         
-        # Αποθήκευση στη βάση (αν ο χρήστης είναι συνδεδεμένος)
+        pension_data = calculate_greek_pension(form_data)
+        pdf_report = create_pdf_report(pension_data)
+        
         if 'user_id' in session:
-            save_calculation_to_db(session['user_id'], {
-                'age': age,
-                'years': years,
-                'salary': salary,
-                'fund': fund
-            }, pension_data)
+            save_calculation_to_db(session['user_id'], pension_data)
         
-        return render_template('results.html',
-                             insurance_data=insurance_data,
-                             pension_data=pension_data,
-                             pdf_report=pdf_report)
+        return render_template('results.html', pension_data=pension_data, pdf_report=pdf_report)
                              
     except Exception as e:
-        flash(f'Calculation Error: {str(e)}')
+        flash(f'Σφάλμα υπολογισμού: {str(e)}')
         return render_template('index.html')
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """Εγγραφή νέου χρήστη"""
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
@@ -222,22 +337,14 @@ def register():
         
         try:
             conn = get_db_connection()
-            
-            # Έλεγχος αν υπάρχει ήδη ο χρήστης
-            existing_user = conn.execute(
-                'SELECT id FROM users WHERE email = ?', (email,)
-            ).fetchone()
+            existing_user = conn.execute('SELECT id FROM users WHERE email = ?', (email,)).fetchone()
             
             if existing_user:
                 flash('Το email χρησιμοποιείται ήδη')
                 return render_template('register.html')
             
-            # Δημιουργία νέου χρήστη
             password_hash = generate_password_hash(password)
-            conn.execute(
-                'INSERT INTO users (email, password_hash, full_name) VALUES (?, ?, ?)',
-                (email, password_hash, full_name)
-            )
+            conn.execute('INSERT INTO users (email, password_hash, full_name) VALUES (?, ?, ?)', (email, password_hash, full_name))
             conn.commit()
             
             user_id = conn.execute('SELECT last_insert_rowid()').fetchone()[0]
@@ -256,16 +363,13 @@ def register():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Σύνδεση χρήστη"""
     if request.method == 'POST':
         email = request.form['email']
         password = request.form['password']
         
         try:
             conn = get_db_connection()
-            user = conn.execute(
-                'SELECT * FROM users WHERE email = ?', (email,)
-            ).fetchone()
+            user = conn.execute('SELECT * FROM users WHERE email = ?', (email,)).fetchone()
             conn.close()
             
             if user and check_password_hash(user['password_hash'], password):
@@ -285,14 +389,12 @@ def login():
 
 @app.route('/logout')
 def logout():
-    """Αποσύνδεση χρήστη"""
     session.clear()
     flash('Έγινε αποσύνδεση')
     return render_template('index.html')
 
 @app.route('/history')
 def history():
-    """Ιστορικό υπολογισμών"""
     if 'user_id' not in session:
         flash('Παρακαλώ συνδεθείτε για να δείτε το ιστορικό')
         return render_template('login.html')
@@ -308,7 +410,6 @@ def download_file(filename):
 def health_check():
     return "OK", 200
 
-# Αρχικοποίηση βάσης δεδομένων κατά την εκκίνηση
 with app.app_context():
     init_db()
 
