@@ -93,27 +93,6 @@
             transform: translateY(-2px); 
             box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
         }
-        .btn-upload {
-            background: linear-gradient(135deg, #27ae60, #219a52);
-        }
-        .btn-upload:hover {
-            box-shadow: 0 10px 20px rgba(39, 174, 96, 0.3);
-        }
-        .file-upload {
-            border: 2px dashed #bdc3c7;
-            border-radius: 8px;
-            padding: 30px;
-            text-align: center;
-            transition: border-color 0.3s;
-            cursor: pointer;
-        }
-        .file-upload:hover {
-            border-color: #3498db;
-        }
-        .file-upload.dragover {
-            border-color: #27ae60;
-            background: rgba(39, 174, 96, 0.05);
-        }
         .features { 
             display: grid; 
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); 
@@ -151,13 +130,24 @@
             border-left: 5px solid #00b894;
             color: #2d3436;
         }
+        .info-box {
+            background: linear-gradient(135deg, #ffeaa7, #fdcb6e);
+            padding: 25px;
+            border-radius: 10px;
+            text-align: center;
+            margin-bottom: 25px;
+        }
+        .info-box h3 {
+            color: #2d3436;
+            margin-bottom: 10px;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>🏛️ ΣΥΝΤΑΞΙΟΛΟΓΟΣ PRO</h1>
-            <p>Πλήρης ανάλυση σύνταξης με OCR τεχνολογία & πραγματικούς υπολογισμούς</p>
+            <p>Πλήρης ανάλυση σύνταξης με πραγματικούς υπολογισμούς ΕΦΚΑ/ΙΚΑ</p>
         </div>
 
         <div class="flash-messages">
@@ -171,35 +161,36 @@
         </div>
 
         <div class="content">
-            <!-- Αριστερά: Upload PDF -->
+            <!-- Αριστερά: Πληροφορίες -->
             <div class="section">
-                <h2>📄 Αυτόματη Ανάλυση από Αρχεία</h2>
-                <p>Ανεβάστε αρχεία PDF ή εικόνες από:</p>
-                <ul style="margin: 15px 0 25px 20px; color: #555;">
-                    <li>Αποδείξεις μισθοδοσίας</li>
-                    <li>Βεβαιώσεις ΕΦΚΑ/ΙΚΑ</li>
-                    <li>Οποιοδήποτε έγγραφο με ασφαλιστικά στοιχεία</li>
-                </ul>
+                <h2>🚀 Προχωρημένος Συνταξιολόγος</h2>
                 
-                <form action="/upload" method="post" enctype="multipart/form-data" id="uploadForm">
-                    <div class="file-upload" id="fileUploadArea">
-                        <div style="font-size: 3em; margin-bottom: 15px;">📁</div>
-                        <p><strong>Κάντε κλικ ή σύρετε αρχείο εδώ</strong></p>
-                        <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
-                            PDF, JPG, PNG (μέχρι 16MB)
-                        </p>
-                        <input type="file" name="file" id="fileInput" accept=".pdf,.jpg,.jpeg,.png" 
-                               style="display: none;" required>
-                    </div>
-                    <button type="submit" class="btn btn-upload" style="margin-top: 20px;">
-                        🔍 ΑΝΑΓΝΩΡΙΣΗ & ΥΠΟΛΟΓΙΣΜΟΣ
-                    </button>
-                </form>
+                <div class="info-box">
+                    <h3>📊 Πραγματικοί Υπολογισμοί</h3>
+                    <p>Βάσει επίσημων τύπων ΕΦΚΑ & ΙΚΑ</p>
+                </div>
+
+                <p><strong>Δυνατότητες Συστήματος:</strong></p>
+                <ul style="margin: 15px 0 25px 20px; color: #555;">
+                    <li>💰 Υπολογισμός βασικής σύνταξης</li>
+                    <li>📈 Επίδομα χαμηλής σύνταξης</li>
+                    <li>📑 Αυτόματη δημιουργία PDF reports</li>
+                    <li>⚡ Άμεσα αποτελέσματα</li>
+                    <li>🎯 Ακριβείς προβλέψεις</li>
+                </ul>
+
+                <div style="background: #e8f4fd; padding: 20px; border-radius: 10px; border-left: 4px solid #3498db;">
+                    <h4 style="color: #2c3e50; margin-bottom: 10px;">ℹ️ Πληροφορίες</h4>
+                    <p style="color: #555; margin: 0;">
+                        Το σύστημα υπολογίζει με βάση τα επίσημα ποσοστά αντικατάστασης 
+                        και περιλαμβάνει όλα τα νόμιμα επιδόματα.
+                    </p>
+                </div>
             </div>
 
             <!-- Δεξιά: Χειροκίνητη Εισαγωγή -->
             <div class="section">
-                <h2>✍️ Χειροκίνητη Εισαγωγή</h2>
+                <h2>✍️ Υπολογισμός Σύνταξης</h2>
                 <p>Συμπληρώστε τα στοιχεία σας για άμεσο υπολογισμό:</p>
                 
                 <form action="/manual" method="post">
@@ -215,7 +206,7 @@
                     
                     <div class="form-group">
                         <label for="salary">Μέσος Μισθός (€):</label>
-                        <input type="number" id="salary" name="salary" min="500" max="10000" step="100" value="1500">
+                        <input type="number" id="salary" name="salary" min="500" max="10000" step="100" value="1500" required>
                     </div>
                     
                     <div class="form-group">
@@ -237,78 +228,30 @@
 
         <!-- Features -->
         <div style="padding: 40px; background: #f8f9fa; border-top: 1px solid #e1e8ed;">
-            <h2 style="text-align: center; margin-bottom: 30px; color: #2c3e50;">🚀 Δυνατότητες Συστήματος</h2>
+            <h2 style="text-align: center; margin-bottom: 30px; color: #2c3e50;">🎯 Πλήρης Ανάλυση Σύνταξης</h2>
             <div class="features">
                 <div class="feature">
-                    <div class="feature-icon">🔍</div>
-                    <h3>OCR Τεχνολογία</h3>
-                    <p>Αυτόματη ανάγνωση δεδομένων από έγγραφα</p>
+                    <div class="feature-icon">💰</div>
+                    <h3>Βασική Σύνταξη</h3>
+                    <p>Υπολογισμός βάσει ετών ασφάλισης</p>
                 </div>
                 <div class="feature">
-                    <div class="feature-icon">📊</div>
-                    <h3>Πραγματικοί Υπολογισμοί</h3>
-                    <p>Βάσει επίσημων τύπων ΕΦΚΑ/ΙΚΑ</p>
+                    <div class="feature-icon">📈</div>
+                    <h3>Επιδόματα</h3>
+                    <p>Χαμηλής σύνταξης & εθνική</p>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">📑</div>
                     <h3>PDF Reports</h3>
-                    <p>Εξαγωγή αναλυτικών εκθέσεων</p>
+                    <p>Αναλυτικές εκθέσεις για λήψη</p>
                 </div>
                 <div class="feature">
                     <div class="feature-icon">⚡</div>
-                    <h3>Ακριβής Ανάλυση</h3>
-                    <p>Λεπτομερής ανάλυση με όλα τα επιδόματα</p>
+                    <h3>Άμεσα Αποτελέσματα</h3>
+                    <p>Πραγματικοί χρόνοι απόκρισης</p>
                 </div>
             </div>
         </div>
     </div>
-
-    <script>
-        // Drag & drop functionality
-        const fileUploadArea = document.getElementById('fileUploadArea');
-        const fileInput = document.getElementById('fileInput');
-
-        fileUploadArea.addEventListener('click', () => fileInput.click());
-        
-        fileUploadArea.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            fileUploadArea.classList.add('dragover');
-        });
-        
-        fileUploadArea.addEventListener('dragleave', () => {
-            fileUploadArea.classList.remove('dragover');
-        });
-        
-        fileUploadArea.addEventListener('drop', (e) => {
-            e.preventDefault();
-            fileUploadArea.classList.remove('dragover');
-            fileInput.files = e.dataTransfer.files;
-            
-            // Update UI to show selected file
-            if (e.dataTransfer.files.length > 0) {
-                fileUploadArea.innerHTML = `
-                    <div style="font-size: 3em; margin-bottom: 15px;">✅</div>
-                    <p><strong>Επιλεγμένο αρχείο:</strong></p>
-                    <p style="color: #27ae60; font-weight: 600;">${e.dataTransfer.files[0].name}</p>
-                    <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
-                        Κάντε υποβολή για ανάλυση
-                    </p>
-                `;
-            }
-        });
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                fileUploadArea.innerHTML = `
-                    <div style="font-size: 3em; margin-bottom: 15px;">✅</div>
-                    <p><strong>Επιλεγμένο αρχείο:</strong></p>
-                    <p style="color: #27ae60; font-weight: 600;">${e.target.files[0].name}</p>
-                    <p style="font-size: 0.9em; color: #666; margin-top: 10px;">
-                        Κάντε υποβολή για ανάλυση
-                    </p>
-                `;
-            }
-        });
-    </script>
 </body>
 </html>
