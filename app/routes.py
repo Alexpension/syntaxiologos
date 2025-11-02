@@ -1,12 +1,15 @@
-from flask import render_template
-from app import create_app
+from flask import Flask
 
-app = create_app()
+app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return "Συνταξιολόγος - Greek Pension Calculator"
+    return "Συνταξιολόγος - Greek Pension Calculator ΕΞΕΙ!"
 
 @app.route('/calculate')
 def calculate():
     return "Υπολογισμός Σύνταξης - Coming Soon!"
+
+@app.route('/healthz')
+def health_check():
+    return "OK", 200

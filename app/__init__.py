@@ -2,5 +2,7 @@ from flask import Flask
 
 def create_app():
     app = Flask(__name__)
-    from app import routes
+    
+    # Import routes ΜΕΤΑ τη δημιουργία του app
+    from . import routes
     return app
