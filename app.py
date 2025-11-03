@@ -166,52 +166,65 @@ def calculate_greek_pension(form_data):
         'heavy_work_years': heavy_work_years,
         'salary': salary,
         'fund': fund,
-        'children': children
+        'children': children,
+        'data_source': form_data.get('data_source', 'Χειροκίνητη εισαγωγή')
     }
 
 def create_pdf_report(pension_data):
     pdf = FPDF()
     pdf.add_page()
     pdf.set_font('Arial', 'B', 16)
-    pdf.cell(200, 10, 'SYNTAXIOLOGOS - PENSION REPORT', 0, 1, 'C')
+    pdf.cell(200, 10, 'SYNTAXIOLOGOS - ΑΝΑΛΥΤΙΚΗ ΕΚΘΕΣΗ ΣΥΝΤΑΞΗΣ', 0, 1, 'C')
     pdf.ln(10)
     
     pdf.set_font('Arial', 'B', 12)
-    pdf.cell(200, 10, 'USER DATA:', 0, 1)
+    pdf.cell(200, 10, 'ΣΤΟΙΧΕΙΑ ΑΣΦΑΛΙΣΜΕΝΟΥ:', 0, 1)
     pdf.set_font('Arial', '', 11)
-    pdf.cell(200, 8, f"Gender: {pension_data['gender']}", 0, 1)
-    pdf.cell(200, 8, f"Birth Year: {pension_data['birth_year']}", 0, 1)
-    pdf.cell(200, 8, f"Current Age: {pension_data['current_age']}", 0, 1)
-    pdf.cell(200, 8, f"Insurance Years: {pension_data['insurance_years']}", 0, 1)
-    pdf.cell(200, 8, f"Heavy Work Years: {pension_data['heavy_work_years']}", 0, 1)
-    pdf.cell(200, 8, f"Salary: {pension_data['salary']} EUR", 0, 1)
-    pdf.cell(200, 8, f"Fund: {pension_data['fund']}", 0, 1)
-    pdf.cell(200, 8, f"Children: {pension_data['children']}", 0, 1)
+    pdf.cell(200, 8, f"Πηγή δεδομένων: {pension_data.get('data_source', 'Χειροκίνητη εισαγωγή')}", 0, 1)
+    pdf.cell(200, 8, f"Φύλο: {pension_data['gender']}", 0, 1)
+    pdf.cell(200, 8, f"Έτος γέννησης: {pension_data['birth_year']}", 0, 1)
+    pdf.cell(200, 8, f"Τρέχουσα ηλικία: {pension_data['current_age']} ετών", 0, 1)
+    pdf.cell(200, 8, f"Έτη ασφάλισης: {pension_data['insurance_years']}", 0, 1)
+    if pension_data.get('insurance_days'):
+        pdf.cell(200, 8, f"Ημέρες ασφάλισης: {pension_data['insurance_days']}", 0, 1)
+    pdf.cell(200, 8, f"Έτη βαρέας εργασίας: {pension_data['heavy_work_years']}", 0, 1)
+    pdf.cell(200, 8, f"Μισθός: {pension_data['salary']} €", 0, 1)
+    pdf.cell(200, 8, f"Ταμείο: {pension_data['fund']}", 0, 1)
+    pdf.cell(200, 8, f"Παιδιά: {pension_data['children']}", 0, 1)
     
     pdf.ln(10)
     pdf.set_font('Arial', 'B', 12)
-    pdf.cell(200, 10, 'PENSION CALCULATION:', 0, 1)
+    pdf.cell(200, 10, 'ΥΠΟΛΟΓΙΣΜΟΣ ΣΥΝΤΑΞΗΣ:', 0, 1)
     pdf.set_font('Arial', '', 11)
-    pdf.cell(200, 8, f"Basic Pension: {pension_data['basic_pension']} EUR", 0, 1)
-    pdf.cell(200, 8, f"National Pension: {pension_data['national_pension']} EUR", 0, 1)
-    pdf.cell(200, 8, f"Social Benefit: {pension_data['social_benefit']} EUR", 0, 1)
-    pdf.cell(200, 8, f"Children Benefit: {pension_data['children_benefit']} EUR", 0, 1)
-    pdf.cell(200, 8, f"TOTAL PENSION: {pension_data['total_pension']} EUR", 0, 1)
-    pdf.cell(200, 8, f"Replacement Rate: {pension_data['replacement_rate']}%", 0, 1)
-    pdf.cell(200, 8, f"Retirement Age: {pension_data['retirement_age']}", 0, 1)
-    pdf.cell(200, 8, f"Years Remaining: {pension_data['years_remaining']}", 0, 1)
+    pdf.cell(200, 8, f"Βασική σύνταξη: {pension_data['basic_pension']} €", 0, 1)
+    pdf.cell(200, 8, f"Εθνική σύνταξη: {pension_data['national_pension']} €", 0, 1)
+    pdf.cell(200, 8, f"Επίδομα κοινωνικής ασφάλισης: {pension_data['social_benefit']} €", 0, 1)
+    pdf.cell(200, 8, f"Επίδομα τέκνων: {pension_data['children_benefit']} €", 0, 1)
+    pdf.cell(200, 8, f"ΣΥΝΟΛΙΚΗ ΣΥΝΤΑΞΗ: {pension_data['total_pension']} €", 0, 1)
+    pdf.cell(200, 8, f"Ποσοστό αντικατάστασης: {pension_data['replacement_rate']}%", 0, 1)
+    pdf.cell(200, 8, f"Ηλικία συνταξιοδότησης: {pension_data['retirement_age']}", 0, 1)
+    pdf.cell(200, 8, f"Έτη που απομένουν: {pension_data['years_remaining']}", 0, 1)
     
     pdf.ln(10)
     pdf.set_font('Arial', 'B', 12)
-    pdf.cell(200, 10, 'ELIGIBILITY:', 0, 1)
+    pdf.cell(200, 10, 'ΔΙΚΑΙΟΛΟΓΗΣΗ:', 0, 1)
     pdf.set_font('Arial', '', 11)
-    pdf.cell(200, 8, f"Full Pension: {'YES' if pension_data['eligible_for_full'] else 'NO'}", 0, 1)
-    pdf.cell(200, 8, f"Early Pension: {'YES' if pension_data['eligible_for_early'] else 'NO'}", 0, 1)
-    pdf.cell(200, 8, f"Heavy Work Pension: {'YES' if pension_data['eligible_for_heavy'] else 'NO'}", 0, 1)
+    pdf.cell(200, 8, f"Πλήρης σύνταξη: {'ΝΑΙ' if pension_data['eligible_for_full'] else 'ΟΧΙ'}", 0, 1)
+    pdf.cell(200, 8, f"Προνομιακή σύνταξη: {'ΝΑΙ' if pension_data['eligible_for_early'] else 'ΟΧΙ'}", 0, 1)
+    pdf.cell(200, 8, f"Σύνταξη βαρέας εργασίας: {'ΝΑΙ' if pension_data['eligible_for_heavy'] else 'ΟΧΙ'}", 0, 1)
+    
+    if not pension_data['eligible_for_full']:
+        pdf.ln(5)
+        pdf.set_font('Arial', 'B', 11)
+        pdf.cell(200, 8, "ΑΠΑΙΤΟΥΜΕΝΑ ΓΙΑ ΠΛΗΡΗ ΣΥΝΤΑΞΗ:", 0, 1)
+        pdf.set_font('Arial', '', 10)
+        pdf.cell(200, 6, f"Επιπλέον έτη ασφάλισης: {pension_data['required_years_full']}", 0, 1)
+        pdf.cell(200, 6, f"Επιπλέον έτη βαρέας εργασίας: {pension_data['required_heavy_years']}", 0, 1)
     
     pdf.ln(15)
     pdf.set_font('Arial', 'I', 10)
-    pdf.cell(200, 8, f"Calculation Date: {datetime.now().strftime('%d/%m/%Y %H:%M')}", 0, 1)
+    pdf.cell(200, 8, f"Ημερομηνία υπολογισμού: {datetime.now().strftime('%d/%m/%Y %H:%M')}", 0, 1)
+    pdf.cell(200, 8, "ΣΥΝΤΑΞΙΟΛΟΓΟΣ - Σύστημα Αυτόματων Υπολογισμών Σύνταξης", 0, 1)
     
     filename = f"static/results/pension_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.pdf"
     pdf.output(filename)
@@ -268,7 +281,8 @@ def manual_calculation():
             'heavy_work_years': request.form.get('heavy_work_years', '0'),
             'salary': request.form.get('salary', '1500'),
             'fund': request.form.get('fund', 'ika'),
-            'children': request.form.get('children', '0')
+            'children': request.form.get('children', '0'),
+            'data_source': 'Χειροκίνητη εισαγωγή'
         }
         form_data['birth_year'] = int(form_data['birth_year'])
         form_data['current_age'] = int(form_data['current_age'])
@@ -303,8 +317,24 @@ def upload_file():
             return render_template('upload.html')
         
         if file:
+            filename = file.filename.lower()
+            
+            # Έλεγχος για PDF e-ΕΦΚΑ
+            if filename.endswith('.pdf'):
+                flash('🔍 Επεξεργασία PDF e-ΕΦΚΑ... Παρακαλώ περιμένετε')
+            
             file_content = file.read()
             extracted_data = FileProcessor.process_file(file_content, file.filename)
+            
+            # Προσθήκη πηγής δεδομένων
+            if filename.endswith('.pdf'):
+                extracted_data['data_source'] = 'Αυτόματη ανάλυση PDF e-ΕΦΚΑ'
+            elif filename.endswith('.csv'):
+                extracted_data['data_source'] = 'Αρχείο CSV'
+            elif filename.endswith('.json'):
+                extracted_data['data_source'] = 'Αρχείο JSON'
+            else:
+                extracted_data['data_source'] = 'Αρχείο εικόνας/άλλο'
             
             pension_data = calculate_greek_pension(extracted_data)
             pdf_report = create_pdf_report(pension_data)
