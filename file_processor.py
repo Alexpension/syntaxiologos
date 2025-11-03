@@ -1,3 +1,4 @@
+@"
 import PyPDF2
 import json
 import csv
@@ -8,6 +9,48 @@ from image_processor import ImageProcessor
 
 class FileProcessor:
     """Επεξεργαστής αρχείων για εξαγωγή πραγματικών δεδομένων σύνταξης"""
+    
+    @staticmethod
+    def extract_birth_year_from_amka(amka):
+        """Εξάγει το έτος γέννησης από ΑΜΚΑ"""
+        try:
+            if len(amka) == 11:
+                # ΑΜΚΑ: DDMMYYXXXXX - τα πρώτα 6 ψηφία είναι ημερομηνία γέννησης
+                day = amka[0:2]
+                month = amka[2:4]
+                year_short = amka[4:6]
+                
+                # Μετατροπή σε πλήρες έτος
+                year_int = int(year_short)
+                current_year_short = datetime.now().year % 100
+                
+                # Αν το έτος είναι μεγαλύτερο από το τρέχον, είναι 1900s, αλλιώς 2000s
+                if year_int > current_year_short:
+                    full_year = 1900 + year_int
+                else:
+                    full_year = 2000 + year_int
+                
+                print(f"    📅 Εξαγωγή έτους γέννησης από ΑΜΚΑ: {day}/{month}/{full_year}")
+                return full_year
+                
+        except Exception as e:
+            print(f"    ⚠️ Σφάλμα εξαγωγής έτους από ΑΜΚΑ: {e}")
+        
+        return None
+
+    @staticmethod
+    def extract_gender_from_amka(amka):
+        """Εξάγει το φύλο από ΑΜΚΑ (περιττός αριθμός = άνδρας, άρτιος = γυναίκα)"""
+        try:
+            if len(amka) == 11:
+                last_digit = int(amka[-1])
+                gender = 'male' if last_digit % 2 == 1 else 'female'
+                print(f"    👤 Εξαγωγή φύλου από ΑΜΚΑ: {gender}")
+                return gender
+        except Exception as e:
+            print(f"    ⚠️ Σφάλμα εξαγωγής φύλου από ΑΜΚΑ: {e}")
+        
+        return 'male'
     
     @staticmethod
     def process_csv(file_content):
@@ -261,6 +304,19 @@ class FileProcessor:
                 extracted[field] = match.group(2)
                 print(f"    ✅ Βρέθηκε {field}: {match.group(2)}")
         
+        # Εξαγωγή έτους γέννησης από ΑΜΚΑ
+        if 'amka' in extracted and 'birth_year' not in extracted:
+            birth_year = FileProcessor.extract_birth_year_from_amka(extracted['amka'])
+            if birth_year:
+                extracted['birth_year'] = birth_year
+                print(f"    ✅ Βρέθηκε birth_year από ΑΜΚΑ: {birth_year}")
+        
+        # Εξαγωγή φύλου από ΑΜΚΑ
+        if 'amka' in extracted and 'gender' not in extracted:
+            gender = FileProcessor.extract_gender_from_amka(extracted['amka'])
+            if gender:
+                extracted['gender'] = gender
+        
         # Ειδική επεξεργασία για ημερομηνία γέννησης
         if 'birth_date' in extracted:
             birth_date = FileProcessor._parse_date(extracted['birth_date'])
@@ -268,6 +324,16 @@ class FileProcessor:
                 extracted['current_age'] = FileProcessor._calculate_age(birth_date)
                 extracted['birth_year'] = birth_date.year
                 print(f"    🎂 Ηλικία από ημερομηνία: {extracted['current_age']} ετών")
+        
+        # Υπολογισμός ηλικίας από birth_year
+        if 'birth_year' in extracted and 'current_age' not in extracted:
+            try:
+                birth_year = int(extracted['birth_year'])
+                current_year = datetime.now().year
+                extracted['current_age'] = current_year - birth_year
+                print(f"    🎂 Υπολογισμός ηλικίας από birth_year: {extracted['current_age']} ετών")
+            except:
+                pass
         
         # Μετατροπή ημερών σε έτη
         if 'insurance_days' in extracted and 'insurance_years' not in extracted:
@@ -383,4 +449,5 @@ class FileProcessor:
         elif any(filename_lower.endswith(fmt) for fmt in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp']):
             return ImageProcessor.process_file(file_content, filename)
         else:
-            raise Exception("Μη υποστηριζόμενη μορφή αρχείου")
+            raise Exception("Μη υποστηριζόμενη μορφή αρχείu")
+"@ | Out-File -FilePath file_processor.py -Encoding utf8
