@@ -19,6 +19,11 @@ class EFKAPDFParser:
             # Εξαγωγή κειμένου από όλες τις σελίδες
             for page_num, page in enumerate(pdf_reader.pages):
                 page_text = page.extract_text() or ""
+                # Fix encoding για Ελληνικούς χαρακτήρες
+                try:
+                    page_text = page_text.encode('latin-1', errors='ignore').decode('utf-8', errors='ignore')
+                except:
+                    pass
                 full_text += f"\n--- Σελίδα {page_num + 1} ---\n{page_text}"
             
             print(f"📄 PDF e-ΕΦΚΑ loaded: {len(full_text)} χαρακτήρες")
@@ -216,7 +221,7 @@ class FileProcessor:
                 return full_year
                 
         except Exception as e:
-            print(f"    ⚠️ Σφάλμα εξαγωγής έτους από ΑΜΚΑ: {e}")
+            print(f"   ⚠️ Σφάλμα εξαγωγής έτους από ΑΜΚΑ: {e}")
         
         return None
 
@@ -282,11 +287,31 @@ class FileProcessor:
             return standardized_data
             
         except Exception as e:
-            print(f"⚠️ EFKA parser failed, falling back to generic: {e}")
-            # Fallback to existing generic PDF processing
-            return FileProcessor._extract_detailed_data_from_text(
-                PyPDF2.PdfReader(io.BytesIO(file_content)).pages[0].extract_text()
-            )
+            print(f"⚠️ EFKA parser failed: {str(e)}")
+            # Fallback με encoding fix
+            try:
+                pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+                text = ""
+                for page in pdf_reader.pages:
+                    page_text = page.extract_text() or ""
+                    # Fix encoding για Ελληνικούς χαρακτήρες
+                    try:
+                        text += page_text.encode('latin-1', errors='ignore').decode('utf-8', errors='ignore')
+                    except:
+                        text += page_text
+                
+                return FileProcessor._extract_detailed_data_from_text(text)
+            except Exception as fallback_error:
+                print(f"❌ Fallback also failed: {fallback_error}")
+                # Τελευταία προσπάθεια με απλό text
+                try:
+                    pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
+                    text = ""
+                    for page in pdf_reader.pages:
+                        text += page.extract_text() or ""
+                    return FileProcessor._extract_detailed_data_from_text(text)
+                except:
+                    raise Exception(f"Αδυναμία ανάλυσης PDF: {str(e)}")
     
     @staticmethod
     def process_json(file_content):
