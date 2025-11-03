@@ -1,4 +1,4 @@
-import PyPDF2
+import pdfplumber
 import json
 import csv
 import io
@@ -13,13 +13,13 @@ class EFKAPDFParser:
     def parse_efka_pdf(file_content):
         """Κύρια μέθοδος ανάλυσης PDF e-ΕΦΚΑ"""
         try:
-            pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
             full_text = ""
             
-            # Εξαγωγή κειμένου από όλες τις σελίδες
-            for page_num, page in enumerate(pdf_reader.pages):
-                page_text = page.extract_text() or ""
-                full_text += f"\n--- Σελίδα {page_num + 1} ---\n{page_text}"
+            # Χρήση pdfplumber που διαχειρίζεται καλύτερα encoding
+            with pdfplumber.open(io.BytesIO(file_content)) as pdf:
+                for page_num, page in enumerate(pdf.pages):
+                    page_text = page.extract_text() or ""
+                    full_text += f"\n--- Σελίδα {page_num + 1} ---\n{page_text}"
             
             print(f"📄 PDF e-ΕΦΚΑ loaded: {len(full_text)} χαρακτήρες")
             
@@ -142,53 +142,75 @@ class EFKAPDFParser:
     
     @staticmethod
     def _parse_insurance_periods(table_text):
-        """Ανάλυση περιόδων ασφάλισης από πίνακα"""
+        """Ανάλυση περιόδων ασφάλισης από πίνακα - ΔΙΟΡΘΩΜΕΝΗ"""
         periods = []
-        
-        # Pattern για γραμμές πίνακα με ημερομηνίες
-        line_pattern = r'(\d{2}/\d{2}/\d{4})\s*(\d{2}/\d{2}/\d{4})\s*(\d*)\s*(\d*)\s*(\d+)'
         
         lines = table_text.split('\n')
         for line in lines:
-            match = re.search(line_pattern, line)
-            if match:
-                start_date = FileProcessor._parse_date(match.group(1))
-                end_date = FileProcessor._parse_date(match.group(2))
-                days_str = match.group(5).strip()
-                days = int(days_str) if days_str and days_str.isdigit() else 0
+            # Έλεγχος για πραγματικές γραμμές δεδομένων
+            if re.search(r'\d{2}/\d{2}/\d{4}.*\d{2}/\d{2}/\d{4}', line):
+                # Απλοποιημένη ανάλυση - χρήση των πραγματικών ημερών από τη στήλη "Ημέρες"
+                date_match = re.search(r'(\d{2}/\d{2}/\d{4})\s+(\d{2}/\d{2}/\d{4})', line)
+                days_match = re.search(r'(\d{2}/\d{2}/\d{4})\s+(\d{2}/\d{2}/\d{4}).*?(\d+)\s+(\d+)\s+(\d+)', line)
                 
-                if start_date and end_date and days > 0:
-                    period = {
-                        'start_date': start_date,
-                        'end_date': end_date,
-                        'days': days,
-                        'salary': EFKAPDFParser._extract_salary_from_line(line)
-                    }
-                    periods.append(period)
-                    print(f"📅 Περίοδος: {start_date} - {end_date} = {days} ημέρες")
+                if date_match:
+                    start_date = FileProcessor._parse_date(date_match.group(1))
+                    end_date = FileProcessor._parse_date(date_match.group(2))
+                    
+                    # Χρήση των πραγματικών ημερών από το PDF
+                    actual_days = 0
+                    if days_match and days_match.group(5).isdigit():
+                        actual_days = int(days_match.group(5))
+                    
+                    # Αν δεν βρέθηκαν ημέρες, υπολογισμός από ημερομηνίες
+                    if actual_days == 0 and start_date and end_date:
+                        actual_days = (end_date - start_date).days + 1
+                    
+                    # Φίλτρο για ρεαλιστικές τιμές
+                    if actual_days > 0 and actual_days <= 366:
+                        salary = EFKAPDFParser._extract_salary_from_line(line)
+                        
+                        period = {
+                            'start_date': start_date,
+                            'end_date': end_date,
+                            'days': actual_days,
+                            'salary': salary
+                        }
+                        periods.append(period)
+                        print(f"📅 Περίοδος: {start_date} - {end_date} = {actual_days} ημέρες, Μισθός: {salary}€")
         
         return periods
     
     @staticmethod
     def _extract_salary_from_line(line):
-        """Εξαγωγή μισθού από γραμμή πίνακα"""
-        # Ψάχνουμε για ποσά σε ευρώ
+        """Εξαγωγή μισθού από γραμμή πίνακα - ΒΕΛΤΙΩΜΕΝΗ"""
+        # Ψάχνουμε για ποσά στη στήλη "Μικτές αποδοχές"
         salary_patterns = [
             r'(\d+[\,\.]\d{2})\s*€',
+            r'(\d+[\,\.]\d{2})\s*EUR',
+            r'(\d+)\s*ΔΡΧ',
             r'€\s*(\d+[\,\.]\d{2})',
-            r'(\d+[\,\.]\d{2})\s*ΕΥΡΩ',
         ]
         
-        for pattern in salary_patterns:
-            match = re.search(pattern, line, re.IGNORECASE)
-            if match:
-                salary_str = match.group(1).replace(',', '.')
-                try:
-                    salary = float(salary_str)
-                    if salary > 0:
-                        return salary
-                except:
-                    pass
+        # Διαχωρισμός της γραμμής σε στήλες
+        columns = re.split(r'\s{2,}', line.strip())
+        
+        # Η στήλη "Μικτές αποδοχές" είναι συνήθως η 7η ή 8η στήλη
+        for i, column in enumerate(columns):
+            if i >= 6:  # Μετά τις ημερομηνίες και τις ημέρες
+                for pattern in salary_patterns:
+                    match = re.search(pattern, column, re.IGNORECASE)
+                    if match:
+                        salary_str = match.group(1).replace(',', '.')
+                        try:
+                            salary = float(salary_str)
+                            if salary > 0:
+                                # Μετατροπή δραχμών σε ευρώ (340.75 Δρχ = 1 €)
+                                if 'ΔΡΧ' in column.upper() or salary > 1000:
+                                    salary = salary / 340.75
+                                return round(salary, 2)
+                        except:
+                            pass
         
         return 0
 
@@ -285,10 +307,10 @@ class FileProcessor:
             print(f"⚠️ EFKA parser failed: {str(e)}")
             # Fallback χωρίς encoding conversion
             try:
-                pdf_reader = PyPDF2.PdfReader(io.BytesIO(file_content))
-                text = ""
-                for page in pdf_reader.pages:
-                    text += page.extract_text() or ""
+                with pdfplumber.open(io.BytesIO(file_content)) as pdf:
+                    text = ""
+                    for page in pdf.pages:
+                        text += page.extract_text() or ""
                 
                 return FileProcessor._extract_detailed_data_from_text(text)
             except Exception as fallback_error:
