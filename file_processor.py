@@ -1,4 +1,4 @@
-import PyPDF2
+import pypdf as PyPDF2
 import json
 import csv
 import io
