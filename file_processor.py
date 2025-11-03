@@ -1,4 +1,3 @@
-@"
 import PyPDF2
 import json
 import csv
@@ -15,16 +14,13 @@ class FileProcessor:
         """Εξάγει το έτος γέννησης από ΑΜΚΑ"""
         try:
             if len(amka) == 11:
-                # ΑΜΚΑ: DDMMYYXXXXX - τα πρώτα 6 ψηφία είναι ημερομηνία γέννησης
                 day = amka[0:2]
                 month = amka[2:4]
                 year_short = amka[4:6]
                 
-                # Μετατροπή σε πλήρες έτος
                 year_int = int(year_short)
                 current_year_short = datetime.now().year % 100
                 
-                # Αν το έτος είναι μεγαλύτερο από το τρέχον, είναι 1900s, αλλιώς 2000s
                 if year_int > current_year_short:
                     full_year = 1900 + year_int
                 else:
@@ -40,7 +36,7 @@ class FileProcessor:
 
     @staticmethod
     def extract_gender_from_amka(amka):
-        """Εξάγει το φύλο από ΑΜΚΑ (περιττός αριθμός = άνδρας, άρτιος = γυναίκα)"""
+        """Εξάγει το φύλο από ΑΜΚΑ"""
         try:
             if len(amka) == 11:
                 last_digit = int(amka[-1])
@@ -65,10 +61,8 @@ class FileProcessor:
             
             print(f"📊 Βρέθηκαν {len(data)} εγγραφές στο CSV")
             
-            # Συσσωρευμένα δεδομένα από όλες τις εγγραφές
             total_data = FileProcessor._calculate_totals_from_records(data)
             
-            # Εμφάνιση των δεδομένων που εξήχθησαν
             print(f"📈 Εξαγόμενα δεδομένα: {total_data}")
             
             return total_data
@@ -122,7 +116,6 @@ class FileProcessor:
         total_salary = 0
         salary_count = 0
         
-        # Μεταβλητές για τον πρώτο χρήστη
         first_record = records[0]
         birth_date = None
         gender = 'male'
@@ -134,7 +127,6 @@ class FileProcessor:
         for i, record in enumerate(records):
             print(f"  📝 Εγγραφή {i+1}: {record}")
             
-            # Συσσώρευση ημερών ασφάλισης
             if 'insurance_days' in record and record['insurance_days']:
                 try:
                     days = int(record['insurance_days'])
@@ -143,13 +135,11 @@ class FileProcessor:
                 except:
                     pass
             
-            # Υπολογισμός ημερών από ημερομηνίες
             days_from_dates = FileProcessor._calculate_insurance_days_from_dates(record)
             if days_from_dates > 0:
                 total_insurance_days += days_from_dates
                 print(f"    📅 Προσθήκη {days_from_dates} ημερών από ημερομηνίες")
             
-            # Μέσος μισθός
             if 'salary_amount' in record and record['salary_amount']:
                 try:
                     salary = float(record['salary_amount'])
@@ -159,7 +149,6 @@ class FileProcessor:
                 except:
                     pass
             
-            # Εξαγωγή βασικών στοιχείων από πρώτη εγγραφή
             if record == first_record:
                 if 'birth_date' in record and record['birth_date']:
                     birth_date = FileProcessor._parse_date(record['birth_date'])
@@ -170,18 +159,14 @@ class FileProcessor:
                     fund = FileProcessor._map_fund_code(record['fund_code'])
                     print(f"    🏦 Ταμείο: {fund}")
                 
-                # Προσπάθεια εξαγωγής φύλου
                 if 'first_name' in record and record['first_name']:
                     gender = FileProcessor._extract_gender_from_name(record['first_name'])
                     print(f"    👤 Φύλο από όνομα: {gender}")
         
-        # Υπολογισμός ετών ασφάλισης από ημέρες
         insurance_years = total_insurance_days / 365.25
         
-        # Μέσος μισθός
         avg_salary = total_salary / salary_count if salary_count > 0 else 1500
         
-        # Υπολογισμός τρέχουσας ηλικίας
         current_age = FileProcessor._calculate_age(birth_date) if birth_date else 40
         
         result = {
@@ -304,20 +289,17 @@ class FileProcessor:
                 extracted[field] = match.group(2)
                 print(f"    ✅ Βρέθηκε {field}: {match.group(2)}")
         
-        # Εξαγωγή έτους γέννησης από ΑΜΚΑ
         if 'amka' in extracted and 'birth_year' not in extracted:
             birth_year = FileProcessor.extract_birth_year_from_amka(extracted['amka'])
             if birth_year:
                 extracted['birth_year'] = birth_year
                 print(f"    ✅ Βρέθηκε birth_year από ΑΜΚΑ: {birth_year}")
         
-        # Εξαγωγή φύλου από ΑΜΚΑ
         if 'amka' in extracted and 'gender' not in extracted:
             gender = FileProcessor.extract_gender_from_amka(extracted['amka'])
             if gender:
                 extracted['gender'] = gender
         
-        # Ειδική επεξεργασία για ημερομηνία γέννησης
         if 'birth_date' in extracted:
             birth_date = FileProcessor._parse_date(extracted['birth_date'])
             if birth_date:
@@ -325,7 +307,6 @@ class FileProcessor:
                 extracted['birth_year'] = birth_date.year
                 print(f"    🎂 Ηλικία από ημερομηνία: {extracted['current_age']} ετών")
         
-        # Υπολογισμός ηλικίας από birth_year
         if 'birth_year' in extracted and 'current_age' not in extracted:
             try:
                 birth_year = int(extracted['birth_year'])
@@ -335,7 +316,6 @@ class FileProcessor:
             except:
                 pass
         
-        # Μετατροπή ημερών σε έτη
         if 'insurance_days' in extracted and 'insurance_years' not in extracted:
             try:
                 days = int(extracted['insurance_days'])
@@ -344,7 +324,6 @@ class FileProcessor:
             except:
                 pass
         
-        # Default τιμές
         defaults = {
             'gender': 'male',
             'current_age': 45,
@@ -398,7 +377,6 @@ class FileProcessor:
                     print(f"    ✅ Αντιστοίχιση {field} -> {standard_field}: {data[field]}")
                     break
         
-        # Υπολογισμός ηλικίας από birth_year
         if 'birth_year' in standardized and 'current_age' not in standardized:
             try:
                 birth_year = int(standardized['birth_year'])
@@ -407,7 +385,6 @@ class FileProcessor:
             except:
                 pass
         
-        # Μετατροπή ημερών σε έτη
         if 'insurance_days' in standardized and 'insurance_years' not in standardized:
             try:
                 days = int(standardized['insurance_days'])
@@ -415,7 +392,6 @@ class FileProcessor:
             except:
                 pass
         
-        # Default τιμές
         defaults = {
             'gender': 'male',
             'birth_year': 1980,
@@ -449,5 +425,4 @@ class FileProcessor:
         elif any(filename_lower.endswith(fmt) for fmt in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp']):
             return ImageProcessor.process_file(file_content, filename)
         else:
-            raise Exception("Μη υποστηριζόμενη μορφή αρχείu")
-"@ | Out-File -FilePath file_processor.py -Encoding utf8
+            raise Exception("Μη υποστηριζόμενη μορφή αρχείου")
