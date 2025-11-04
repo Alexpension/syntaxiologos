@@ -2,16 +2,29 @@ import json
 import csv
 import io
 import re
-import pdfplumber
-import pytesseract
-from pdf2image import convert_from_bytes
 from datetime import datetime
 
-# Ρύθμιση Tesseract για Windows
+# Graceful imports για Render compatibility
 try:
-    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
-except:
-    pass  # Θα δουλέψει στο Render χωρίς αυτό
+    import pdfplumber
+    PDFPLUMBER_AVAILABLE = True
+except ImportError:
+    PDFPLUMBER_AVAILABLE = False
+    print("⚠️  pdfplumber not available")
+
+try:
+    import pytesseract
+    PYTESSERACT_AVAILABLE = True
+except ImportError:
+    PYTESSERACT_AVAILABLE = False
+    print("⚠️  pytesseract not available")
+
+try:
+    from pdf2image import convert_from_bytes
+    PDF2IMAGE_AVAILABLE = True
+except ImportError:
+    PDF2IMAGE_AVAILABLE = False
+    print("⚠️  pdf2image not available")
 
 class FileProcessor:
     """Επεξεργαστής αρχείων - Πραγματική έκδοση με PDF processing"""
@@ -40,7 +53,7 @@ class FileProcessor:
     
     @staticmethod
     def process_pdf(file_content):
-        """ΠΡΑΓΜΑΤΙΚΗ Επεξεργασία PDF e-ΕΦΚΑ με υβριδική τεχνική"""
+        """ΠΡΑΓΜΑΤΙΚΗ Επεξεργασία PDF e-ΕΦΚΑ με graceful fallbacks"""
         try:
             print("🔍 Επεξεργασία PDF e-ΕΦΚΑ...")
             
@@ -59,32 +72,38 @@ class FileProcessor:
                 'note': 'Αυτόματη ανάλυση PDF e-ΕΦΚΑ'
             }
             
-            # 1. PDFPlumber extraction
-            pdf_text = FileProcessor._extract_with_pdfplumber(file_content)
-            if pdf_text:
-                print(f"📄 PDFPlumber: {len(pdf_text)} χαρακτήρες")
+            extracted_data = {}
             
-            # 2. OCR extraction (Αγγλικά - πιο αξιόπιστα)
-            english_ocr = FileProcessor._extract_with_ocr(file_content, 'eng')
-            if english_ocr:
-                print(f"🔤 English OCR: {len(english_ocr)} χαρακτήρες")
+            # 1. PDFPlumber extraction (αν είναι διαθέσιμο)
+            if PDFPLUMBER_AVAILABLE:
+                pdf_text = FileProcessor._extract_with_pdfplumber(file_content)
+                if pdf_text:
+                    print(f"📄 PDFPlumber: {len(pdf_text)} χαρακτήρες")
+                    extracted_data.update(FileProcessor._smart_efka_analysis(pdf_text))
             
-            # 3. OCR extraction (Ελληνικά - για keywords)
-            greek_ocr = FileProcessor._extract_with_ocr(file_content, 'ell')
-            if greek_ocr:
-                print(f"🇬🇷 Greek OCR: {len(greek_ocr)} χαρακτήρες")
+            # 2. OCR extraction (αν είναι διαθέσιμο)
+            if PYTESSERACT_AVAILABLE and PDF2IMAGE_AVAILABLE:
+                # English OCR
+                english_ocr = FileProcessor._extract_with_ocr(file_content, 'eng')
+                if english_ocr:
+                    print(f"🔤 English OCR: {len(english_ocr)} χαρακτήρες")
+                    extracted_data.update(FileProcessor._smart_efka_analysis(english_ocr))
+                
+                # Greek OCR  
+                greek_ocr = FileProcessor._extract_with_ocr(file_content, 'ell')
+                if greek_ocr:
+                    print(f"🇬🇷 Greek OCR: {len(greek_ocr)} χαρακτήρες")
+                    extracted_data.update(FileProcessor._smart_efka_analysis(greek_ocr))
             
-            # 4. Συνδυασμός όλων των πηγών
-            combined_text = pdf_text + "\n" + english_ocr + "\n" + greek_ocr
+            # 3. Basic pattern matching από raw bytes (πάντα διαθέσιμο)
+            basic_data = FileProcessor._extract_basic_patterns(file_content)
+            extracted_data.update(basic_data)
             
-            # 5. Εξυπνη ανάλυση δεδομένων
-            extracted_data = FileProcessor._smart_efka_analysis(combined_text)
-            
-            # 6. Συγχώνευση με βασικά δεδομένα
+            # 4. Συγχώνευση αποτελεσμάτων
             if FileProcessor._is_valid_insurance_data(extracted_data):
                 final_data = {**base_data, **extracted_data}
                 final_data['source'] = 'pdf_auto_extracted'
-                final_data['note'] = 'Αυτόματη εξαγωγή με υβριδική ανάλυση'
+                final_data['note'] = 'Αυτόματη εξαγωγή με πολλαπλές τεχνικές'
                 print("🎯 Βρέθηκαν δεδομένα από PDF!")
                 return final_data
             else:
@@ -126,6 +145,45 @@ class FileProcessor:
         except Exception as e:
             print(f"OCR error ({lang}): {e}")
             return ""
+    
+    @staticmethod
+    def _extract_basic_patterns(file_content):
+        """Βασική εξαγωγή patterns από raw bytes (χωρίς dependencies)"""
+        try:
+            data = {}
+            content_str = str(file_content)
+            
+            # Αναζήτηση αριθμών
+            # Ημέρες ασφάλισης (4-5 ψηφία)
+            days_match = re.search(r'(\d{4,5})', content_str)
+            if days_match:
+                days = int(days_match.group(1))
+                if 1000 <= days <= 40000:
+                    data['insurance_days'] = days
+                    data['insurance_years'] = round(days / 365, 1)
+                    print("   ✅ Basic - Ημέρες ασφάλισης")
+            
+            # Μισθός (αριθμός με δεκαδικά)
+            salary_match = re.search(r'(\d{3,4}[,.]\d{2})', content_str)
+            if salary_match:
+                salary = float(salary_match.group(1).replace(',', '.'))
+                if 100 <= salary <= 10000:
+                    data['salary'] = salary
+                    print("   ✅ Basic - Μισθός")
+            
+            # Έτος γέννησης
+            year_match = re.search(r'(19[5-9]\d)', content_str)
+            if year_match:
+                year = int(year_match.group(1))
+                if 1950 <= year <= 2000:
+                    data['birth_year'] = year
+                    data['current_age'] = datetime.now().year - year
+                    print("   ✅ Basic - Έτος γέννησης")
+            
+            return data
+        except Exception as e:
+            print(f"Basic patterns error: {e}")
+            return {}
     
     @staticmethod
     def _smart_efka_analysis(text):
