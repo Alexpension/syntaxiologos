@@ -4,7 +4,7 @@ import io
 import re
 from datetime import datetime
 
-# Graceful import για image_processor
+# Graceful imports για να αποφύγουμε ModuleNotFoundError
 try:
     from image_processor import ImageProcessor
     IMAGE_PROCESSOR_AVAILABLE = True
@@ -13,12 +13,13 @@ except ImportError as e:
     print(f"⚠️  ImageProcessor not available: {e}")
 
 class FileProcessor:
-    """Επεξεργαστής αρχείων - Βελτιωμένη έκδοση χωρίς εξαρτήσεις"""
+    """Επεξεργαστής αρχείων - Βελτιωμένη έκδοση με σωστή κωδικοποίηση Ελληνικών"""
     
     @staticmethod
     def process_csv(file_content):
         """Επεξεργασία CSV αρχείου"""
         try:
+            # Χρήση utf-8 για Ελληνικούς χαρακτήρες
             content = file_content.decode('utf-8')
             csv_reader = csv.DictReader(io.StringIO(content))
             data = list(csv_reader)
@@ -39,7 +40,7 @@ class FileProcessor:
     
     @staticmethod
     def process_pdf(file_content):
-        """Επεξεργασία PDF - Self-contained version"""
+        """Επεξεργασία PDF - Βελτιωμένη έκδοση με σωστή κωδικοποίηση"""
         try:
             # Πρώτη προσπάθεια: Απευθείας ανάγνωση PDF structure
             text_data = FileProcessor._extract_pdf_text_simple(file_content)
@@ -72,25 +73,33 @@ class FileProcessor:
     
     @staticmethod
     def _extract_pdf_text_simple(file_content):
-        """Εξαγωγή κειμένου από PDF χωρίς εξωτερικές βιβλιοθήκες"""
+        """Εξαγωγή κειμένου από PDF με σωστή κωδικοποίηση Ελληνικών"""
         try:
             text = ""
             
-            # Απλή αναζήτηση για κείμενο σε PDF
-            # Τα PDF συχνά έχουν κείμενο σε parentheses
+            # Απλή αναζήτηση για κείμενο σε PDF με υποστήριξη Ελληνικών
             text_matches = re.findall(rb'\(([^\)]+)\)', file_content)
             
             for match in text_matches:
                 try:
+                    # Πρώτη προσπάθεια: utf-8
                     decoded = match.decode('utf-8', errors='ignore')
-                    if len(decoded) > 2:  # Αγνοεί μικρές συμβολοσειρές
+                    if len(decoded) > 2 and any(c.isalpha() for c in decoded):
                         text += decoded + " "
                 except:
                     try:
+                        # Δεύτερη προσπάθεια: latin-1 με ignore errors
                         decoded = match.decode('latin-1', errors='ignore')
-                        text += decoded + " "
+                        if len(decoded) > 2 and any(c.isalpha() for c in decoded):
+                            text += decoded + " "
                     except:
-                        pass
+                        # Τρίτη προσπάθεια: cp1253 (Greek Windows)
+                        try:
+                            decoded = match.decode('cp1253', errors='ignore')
+                            if len(decoded) > 2 and any(c.isalpha() for c in decoded):
+                                text += decoded + " "
+                        except:
+                            pass
             
             return text if len(text) > 10 else ""
             
@@ -100,7 +109,7 @@ class FileProcessor:
     
     @staticmethod
     def _parse_efka_data(text):
-        """Ανάλυση δεδομένων e-ΕΦΚΑ από κείμενο"""
+        """Ανάλυση δεδομένων e-ΕΦΚΑ από κείμενο με Ελληνικά patterns"""
         data = {
             'method': 'pattern_matching',
             'gender': 'female',
@@ -112,28 +121,53 @@ class FileProcessor:
         
         try:
             # Βελτιωμένο pattern matching για ελληνικά PDF
-            if re.search(r'[Αα]ρσενικ[όο]|ΑΡΣΕΝ', text, re.IGNORECASE):
+            if re.search(r'[Αα]ρσενικ[όο]|ΑΡΣΕΝ|αρσεν', text, re.IGNORECASE):
                 data['gender'] = 'male'
-            elif re.search(r'[Θθ]ηλυκό|ΘΗΛΥ', text, re.IGNORECASE):
+            elif re.search(r'[Θθ]ηλυκό|ΘΗΛΥ|θηλυ', text, re.IGNORECASE):
                 data['gender'] = 'female'
             
             # Αναζήτηση ημερών ασφάλισης
-            days_match = re.search(r'(\d{3,})\s*[Ηη]μ[έε]ρ[αω]ν?', text)
-            if days_match:
-                data['insurance_days'] = int(days_match.group(1))
-                data['insurance_years'] = round(data['insurance_days'] / 365, 1)
+            days_patterns = [
+                r'(\d{3,})\s*[Ηη]μ[έε]ρ[αω]ν?',
+                r'ΗΜΕΡΕΣ[\s:]*(\d+)',
+                r'ημερες[\s:]*(\d+)'
+            ]
+            
+            for pattern in days_patterns:
+                days_match = re.search(pattern, text, re.IGNORECASE)
+                if days_match:
+                    data['insurance_days'] = int(days_match.group(1))
+                    data['insurance_years'] = round(data['insurance_days'] / 365, 1)
+                    break
             
             # Αναζήτηση μισθού
-            salary_match = re.search(r'(\d{1,4}[,.]\d{2})\s*[Εε]υρώ', text)
-            if salary_match:
-                data['salary'] = float(salary_match.group(1).replace(',', '.'))
+            salary_patterns = [
+                r'(\d{1,4}[,.]\d{2})\s*[Εε]υρώ',
+                r'ΜΙΣΘΟΣ[\s:]*(\d+[,.]?\d*)',
+                r'μισθος[\s:]*(\d+[,.]?\d*)'
+            ]
+            
+            for pattern in salary_patterns:
+                salary_match = re.search(pattern, text, re.IGNORECASE)
+                if salary_match:
+                    salary_str = salary_match.group(1).replace(',', '.')
+                    data['salary'] = float(salary_str)
+                    break
             
             # Αναζήτηση έτους γέννησης
-            birth_match = re.search(r'(19\d{2})\s*[Εε]τών', text)
-            if birth_match:
-                data['birth_year'] = int(birth_match.group(1))
-                current_year = datetime.now().year
-                data['current_age'] = current_year - data['birth_year']
+            birth_patterns = [
+                r'(19\d{2})\s*[Εε]τών',
+                r'ΕΤΟΣ[\s:]*ΓΕΝΝΗΣΗΣ[\s:]*(\d{4})',
+                r'ετος[\s:]*γεννησης[\s:]*(\d{4})'
+            ]
+            
+            for pattern in birth_patterns:
+                birth_match = re.search(pattern, text, re.IGNORECASE)
+                if birth_match:
+                    data['birth_year'] = int(birth_match.group(1))
+                    current_year = datetime.now().year
+                    data['current_age'] = current_year - data['birth_year']
+                    break
             
             return data
         except Exception as e:
