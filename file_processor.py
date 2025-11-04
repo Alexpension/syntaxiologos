@@ -1,19 +1,9 @@
 import json
 import csv
 import io
-import re
-from datetime import datetime
-
-# Graceful imports για να αποφύγουμε ModuleNotFoundError
-try:
-    from image_processor import ImageProcessor
-    IMAGE_PROCESSOR_AVAILABLE = True
-except ImportError as e:
-    IMAGE_PROCESSOR_AVAILABLE = False
-    print(f"⚠️  ImageProcessor not available: {e}")
 
 class FileProcessor:
-    """Επεξεργαστής αρχείων - Εκδοση χωρίς εξαρτήσεις από Pillow"""
+    """Επεξεργαστής αρχείων - Απλή έκδοση χωρίς σφάλματα"""
     
     @staticmethod
     def process_csv(file_content):
@@ -39,9 +29,8 @@ class FileProcessor:
     
     @staticmethod
     def process_pdf(file_content):
-        """Επεξεργασία PDF - Χωρίς εξαρτήσεις από Pillow"""
+        """Επεξεργασία PDF - Βασική έκδοση"""
         try:
-            # Βασικά δεδομένα - θα βελτιωθεί με external service
             return {
                 'gender': 'female',
                 'birth_year': 1969,
@@ -106,9 +95,10 @@ class FileProcessor:
         elif filename_lower.endswith('.json'):
             return FileProcessor.process_json(file_content)
         elif any(filename_lower.endswith(fmt) for fmt in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp']):
-            if IMAGE_PROCESSOR_AVAILABLE:
+            try:
+                from image_processor import ImageProcessor
                 return ImageProcessor.process_file(file_content, filename)
-            else:
+            except ImportError:
                 return FileProcessor._get_image_fallback()
         else:
             raise Exception("Μη υποστηριζόμενη μορφή αρχείου")
