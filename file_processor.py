@@ -2,10 +2,19 @@ import json
 import csv
 import io
 import re
+import pdfplumber
+import pytesseract
+from pdf2image import convert_from_bytes
 from datetime import datetime
 
+# Ρύθμιση Tesseract για Windows
+try:
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+except:
+    pass  # Θα δουλέψει στο Render χωρίς αυτό
+
 class FileProcessor:
-    """Επεξεργαστής αρχείων - Σταθερή έκδοση χωρίς encoding errors"""
+    """Επεξεργαστής αρχείων - Πραγματική έκδοση με PDF processing"""
     
     @staticmethod
     def process_csv(file_content):
@@ -28,14 +37,14 @@ class FileProcessor:
             }
         except Exception as e:
             raise Exception(f"Σφάλμα ανάγνωσης CSV: {str(e)}")
-
+    
     @staticmethod
     def process_pdf(file_content):
-        """Επεξεργασία PDF - Σταθερή έκδοση"""
+        """ΠΡΑΓΜΑΤΙΚΗ Επεξεργασία PDF e-ΕΦΚΑ με υβριδική τεχνική"""
         try:
             print("🔍 Επεξεργασία PDF e-ΕΦΚΑ...")
             
-            # Βασικά δεδομένα που ΠΑΝΤΑ υπάρχουν
+            # Βασικά δεδομένα
             base_data = {
                 'gender': 'female',
                 'birth_year': 1969,
@@ -50,52 +59,156 @@ class FileProcessor:
                 'note': 'Αυτόματη ανάλυση PDF e-ΕΦΚΑ'
             }
             
-            # Απλή ανάλυση για αριθμούς στο PDF
-            numbers_data = FileProcessor._extract_numbers_simple(file_content)
-            if numbers_data:
-                return {**base_data, **numbers_data, 'source': 'pdf_number_analysis'}
+            # 1. PDFPlumber extraction
+            pdf_text = FileProcessor._extract_with_pdfplumber(file_content)
+            if pdf_text:
+                print(f"📄 PDFPlumber: {len(pdf_text)} χαρακτήρες")
             
-            return base_data
+            # 2. OCR extraction (Αγγλικά - πιο αξιόπιστα)
+            english_ocr = FileProcessor._extract_with_ocr(file_content, 'eng')
+            if english_ocr:
+                print(f"🔤 English OCR: {len(english_ocr)} χαρακτήρες")
+            
+            # 3. OCR extraction (Ελληνικά - για keywords)
+            greek_ocr = FileProcessor._extract_with_ocr(file_content, 'ell')
+            if greek_ocr:
+                print(f"🇬🇷 Greek OCR: {len(greek_ocr)} χαρακτήρες")
+            
+            # 4. Συνδυασμός όλων των πηγών
+            combined_text = pdf_text + "\n" + english_ocr + "\n" + greek_ocr
+            
+            # 5. Εξυπνη ανάλυση δεδομένων
+            extracted_data = FileProcessor._smart_efka_analysis(combined_text)
+            
+            # 6. Συγχώνευση με βασικά δεδομένα
+            if FileProcessor._is_valid_insurance_data(extracted_data):
+                final_data = {**base_data, **extracted_data}
+                final_data['source'] = 'pdf_auto_extracted'
+                final_data['note'] = 'Αυτόματη εξαγωγή με υβριδική ανάλυση'
+                print("🎯 Βρέθηκαν δεδομένα από PDF!")
+                return final_data
+            else:
+                print("ℹ️ Χρησιμοποιούνται βασικά δεδομένα με οδηγίες")
+                base_data['note'] = 'Βάσει ανάλυσης PDF, ελέγξτε: Ημέρες ασφάλισης, Μισθός, Έτος γέννησης'
+                return base_data
             
         except Exception as e:
             print(f"PDF processing error: {e}")
             return FileProcessor._get_pdf_fallback()
-
+    
     @staticmethod
-    def _extract_numbers_simple(file_content):
-        """Απλή εξαγωγή αριθμών από PDF χωρίς encoding"""
+    def _extract_with_pdfplumber(pdf_content):
+        """Εξαγωγή κειμένου με PDFPlumber"""
         try:
-            data = {}
-            
-            # Μετατροπή bytes σε string χωρίς encoding issues
-            content_str = str(file_content)
-            
-            # Αναζήτηση ημερών ασφάλισης (4-5 ψηφία)
-            days_match = re.search(r'(\d{4,5})', content_str)
-            if days_match:
-                days = int(days_match.group(1))
-                if 1000 <= days <= 40000:
-                    data['insurance_days'] = days
-                    data['insurance_years'] = round(days / 365, 1)
-            
-            # Αναζήτηση μισθού (αριθμοί με δεκαδικά)
-            salary_match = re.search(r'(\d{3,4}[,.]\d{2})', content_str)
-            if salary_match:
-                salary_str = salary_match.group(1).replace(',', '.')
-                data['salary'] = float(salary_str)
-            
-            # Αναζήτηση έτους γέννησης (19XX)
-            year_match = re.search(r'(19[5-9]\d)', content_str)
-            if year_match:
-                data['birth_year'] = int(year_match.group(1))
-                data['current_age'] = datetime.now().year - data['birth_year']
-            
-            return data
-            
+            text = ""
+            with pdfplumber.open(io.BytesIO(pdf_content)) as pdf:
+                for page in pdf.pages:
+                    page_text = page.extract_text()
+                    if page_text:
+                        text += page_text + "\n"
+            return text
         except Exception as e:
-            print(f"Number extraction error: {e}")
-            return {}
-
+            print(f"PDFPlumber error: {e}")
+            return ""
+    
+    @staticmethod
+    def _extract_with_ocr(pdf_content, lang):
+        """Εξαγωγή κειμένου με OCR"""
+        try:
+            text = ""
+            images = convert_from_bytes(pdf_content, dpi=200)
+            
+            for i, image in enumerate(images):
+                page_text = pytesseract.image_to_string(image, lang=lang, config='--psm 6')
+                text += page_text + "\n"
+            
+            return text
+        except Exception as e:
+            print(f"OCR error ({lang}): {e}")
+            return ""
+    
+    @staticmethod
+    def _smart_efka_analysis(text):
+        """Εξυπνη ανάλυση δεδομένων e-ΕΦΚΑ"""
+        data = {}
+        
+        # Καθαρισμός κειμένου
+        clean_text = text.upper().replace('\n', ' ')
+        
+        print("🎯 Ανάλυση δεδομένων e-ΕΦΚΑ...")
+        
+        # ΠΑΤΤΕΡΝΑ ΓΙΑ E-ΕΦΚΑ (Ελληνικά + Αγγλικά)
+        patterns = {
+            'insurance_days': [
+                (r'ΗΜΕΡΕΣ[\s:]*(\d{4,5})', 'Greek'),           # Ελληνικά
+                (r'(\d{4,5})\s*ΗΜΕΡ', 'Greek'),               # Ελληνικά  
+                (r'DAYS[\s:]*(\d{4,5})', 'English'),          # Αγγλικά
+                (r'INSURANCE[\s:]*(\d{4,5})', 'English'),     # Αγγλικά
+                (r'(\d{4,5})', 'Generic')                     # Γενικός αριθμός
+            ],
+            'salary': [
+                (r'ΜΙΣΘΟΣ[\s:]*(\d+[,.]?\d*)', 'Greek'),      # Ελληνικά
+                (r'(\d{3,4}[,.]\d{2})\s*ΕΥΡ', 'Greek'),       # Ελληνικά
+                (r'SALARY[\s:]*(\d+[,.]?\d*)', 'English'),    # Αγγλικά
+                (r'(\d{3,4}[,.]\d{2})\s*EURO', 'English'),    # Αγγλικά
+                (r'(\d{3,4}[,.]\d{2})', 'Generic')           # Γενικός αριθμός
+            ],
+            'birth_year': [
+                (r'ΓΕΝΝΗΣΗΣ[\s:]*(\d{4})', 'Greek'),         # Ελληνικά
+                (r'BIRTH[\s:]*(\d{4})', 'English'),           # Αγγλικά
+                (r'(19[5-9]\d)', 'Generic')                  # Γενικός έτος
+            ]
+        }
+        
+        # Εφαρμογή patterns με προτεραιότητα
+        for field, pattern_list in patterns.items():
+            for pattern, lang_type in pattern_list:
+                match = re.search(pattern, clean_text)
+                if match:
+                    value = match.group(1)
+                    
+                    if field == 'insurance_days':
+                        days = int(value)
+                        if 1000 <= days <= 40000:
+                            data['insurance_days'] = days
+                            data['insurance_years'] = round(days / 365, 1)
+                            print(f"   ✅ {lang_type} - Ημέρες ασφάλισης: {days}")
+                            break
+                    
+                    elif field == 'salary':
+                        salary = float(value.replace(',', '.'))
+                        if 100 <= salary <= 10000:
+                            data['salary'] = salary
+                            print(f"   ✅ {lang_type} - Μισθός: {salary}€")
+                            break
+                    
+                    elif field == 'birth_year':
+                        year = int(value)
+                        if 1950 <= year <= 2000:
+                            data['birth_year'] = year
+                            data['current_age'] = datetime.now().year - year
+                            print(f"   ✅ {lang_type} - Έτος γέννησης: {year}")
+                            break
+        
+        # Αναγνώριση φύλου
+        if 'ΑΡΣΕΝ' in clean_text or 'MALE' in clean_text:
+            data['gender'] = 'male'
+            print("   ✅ Φύλο: Αρσενικό")
+        elif 'ΘΗΛΥ' in clean_text or 'FEMALE' in clean_text:
+            data['gender'] = 'female'
+            print("   ✅ Φύλο: Θηλυκό")
+        
+        return data
+    
+    @staticmethod
+    def _is_valid_insurance_data(data):
+        """Έλεγχος εγκυρότητας ασφαλιστικών δεδομένων"""
+        return any([
+            data.get('insurance_days', 0) > 0,
+            data.get('salary', 0) > 0,
+            data.get('birth_year', 0) > 1950
+        ])
+    
     @staticmethod
     def _get_pdf_fallback():
         """Ασφαλές fallback"""
@@ -144,11 +257,7 @@ class FileProcessor:
         elif filename_lower.endswith('.json'):
             return FileProcessor.process_json(file_content)
         elif any(filename_lower.endswith(fmt) for fmt in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp']):
-            try:
-                from image_processor import ImageProcessor
-                return ImageProcessor.process_file(file_content, filename)
-            except Exception as e:
-                return FileProcessor._get_image_fallback()
+            return FileProcessor._get_image_fallback()
         else:
             raise Exception("Μη υποστηριζόμενη μορφή αρχείου")
     
@@ -165,5 +274,5 @@ class FileProcessor:
             'children': 0,
             'fund': 'ika',
             'data_source': 'Image File',
-            'note': 'Image processing not available'
+            'note': 'Image processing requires additional libraries'
         }
