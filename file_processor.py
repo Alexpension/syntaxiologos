@@ -3,10 +3,17 @@ import csv
 import io
 import re
 from datetime import datetime
-from image_processor import ImageProcessor
+
+# Graceful import για image_processor
+try:
+    from image_processor import ImageProcessor
+    IMAGE_PROCESSOR_AVAILABLE = True
+except ImportError as e:
+    IMAGE_PROCESSOR_AVAILABLE = False
+    print(f"⚠️  ImageProcessor not available: {e}")
 
 class FileProcessor:
-    """Επεξεργαστής αρχείων - ΒΕΛΤΙΩΜΕΝΗ Έκδοση με PDF text extraction"""
+    """Επεξεργαστής αρχείων - Βελτιωμένη έκδοση χωρίς εξαρτήσεις"""
     
     @staticmethod
     def process_csv(file_content):
@@ -32,10 +39,10 @@ class FileProcessor:
     
     @staticmethod
     def process_pdf(file_content):
-        """ΕΠΙΒΕΛΤΙΩΜΕΝΗ Επεξεργασία PDF - Πραγματική ανάλυση"""
+        """Επεξεργασία PDF - Self-contained version"""
         try:
-            # Πρώτη προσπάθεια: Απευθείας ανάγνωση PDF
-            text_data = FileProcessor._extract_pdf_text(file_content)
+            # Πρώτη προσπάθεια: Απευθείας ανάγνωση PDF structure
+            text_data = FileProcessor._extract_pdf_text_simple(file_content)
             
             # Ανάλυση δεδομένων από το κείμενο
             parsed_data = FileProcessor._parse_efka_data(text_data)
@@ -56,7 +63,7 @@ class FileProcessor:
                     'note': 'Αυτόματη εξαγωγή από PDF'
                 }
             else:
-                # Fallback σε manual input αν η αυτόματη αποτύχει
+                # Fallback αν η αυτόματη αποτύχει
                 return FileProcessor._get_pdf_fallback()
                 
         except Exception as e:
@@ -64,62 +71,31 @@ class FileProcessor:
             return FileProcessor._get_pdf_fallback()
     
     @staticmethod
-    def _extract_pdf_text(file_content):
-        """Εξαγωγή κειμένου από PDF χωρίς external dependencies"""
+    def _extract_pdf_text_simple(file_content):
+        """Εξαγωγή κειμένου από PDF χωρίς εξωτερικές βιβλιοθήκες"""
         try:
-            # ΠΡΩΤΗ ΠΡΟΣΠΑΘΕΙΑ: Χρήση embedded text
-            text = FileProcessor._extract_with_pdf_structure(file_content)
-            if text and len(text.strip()) > 100:
-                return text
-            
-            # ΔΕΥΤΕΡΗ ΠΡΟΣΠΑΘΕΙΑ: OCR fallback (αν υπάρχει το image_processor)
-            try:
-                from image_processor import ImageProcessor
-                # Μετατροπή PDF σε εικόνα και OCR
-                return FileProcessor._extract_with_ocr_fallback(file_content)
-            except:
-                pass
-                
-            return ""
-        except Exception as e:
-            print(f"Text extraction error: {e}")
-            return ""
-    
-    @staticmethod
-    def _extract_with_pdf_structure(file_content):
-        """Εξαγωγή κειμένου από PDF structure"""
-        try:
-            # Απλή προσέγγιση για embedded text
             text = ""
             
-            # Πρότυπο για εύρεση κειμένου σε PDF
-            text_patterns = [
-                rb'BT[\s\S]*?ET',  # Text objects
-                rb'\/T[\s\(\)]([^\>]+)',  # Text streams
-                rb'\(([^\)]+)\)'  # Literal strings
-            ]
+            # Απλή αναζήτηση για κείμενο σε PDF
+            # Τα PDF συχνά έχουν κείμενο σε parentheses
+            text_matches = re.findall(rb'\(([^\)]+)\)', file_content)
             
-            for pattern in text_patterns:
-                matches = re.findall(pattern, file_content)
-                for match in matches:
-                    if isinstance(match, bytes):
-                        try:
-                            text += match.decode('latin-1') + " "
-                        except:
-                            text += str(match) + " "
+            for match in text_matches:
+                try:
+                    decoded = match.decode('utf-8', errors='ignore')
+                    if len(decoded) > 2:  # Αγνοεί μικρές συμβολοσειρές
+                        text += decoded + " "
+                except:
+                    try:
+                        decoded = match.decode('latin-1', errors='ignore')
+                        text += decoded + " "
+                    except:
+                        pass
             
-            return text if len(text) > 50 else ""
-        except:
-            return ""
-    
-    @staticmethod
-    def _extract_with_ocr_fallback(file_content):
-        """OCR fallback μέσω image_processor"""
-        try:
-            # Χρήση του existing image_processor για OCR
-            image_data = ImageProcessor.process_file(file_content, "temp.pdf")
-            return image_data.get('extracted_text', '')
-        except:
+            return text if len(text) > 10 else ""
+            
+        except Exception as e:
+            print(f"Text extraction error: {e}")
             return ""
     
     @staticmethod
@@ -135,32 +111,33 @@ class FileProcessor:
         }
         
         try:
-            # Αναζήτηση φύλου
-            if re.search(r'[Αα]ρσεν', text):
+            # Βελτιωμένο pattern matching για ελληνικά PDF
+            if re.search(r'[Αα]ρσενικ[όο]|ΑΡΣΕΝ', text, re.IGNORECASE):
                 data['gender'] = 'male'
-            elif re.search(r'[Θθ]ηλ', text):
+            elif re.search(r'[Θθ]ηλυκό|ΘΗΛΥ', text, re.IGNORECASE):
                 data['gender'] = 'female'
             
             # Αναζήτηση ημερών ασφάλισης
-            days_match = re.search(r'(\d{3,})\s*[Ηη]μ[έε]ρ', text)
+            days_match = re.search(r'(\d{3,})\s*[Ηη]μ[έε]ρ[αω]ν?', text)
             if days_match:
                 data['insurance_days'] = int(days_match.group(1))
                 data['insurance_years'] = round(data['insurance_days'] / 365, 1)
             
             # Αναζήτηση μισθού
-            salary_match = re.search(r'(\d{1,4}[,.]\d{2})\s*[Εε]υρ', text)
+            salary_match = re.search(r'(\d{1,4}[,.]\d{2})\s*[Εε]υρώ', text)
             if salary_match:
                 data['salary'] = float(salary_match.group(1).replace(',', '.'))
             
             # Αναζήτηση έτους γέννησης
-            birth_match = re.search(r'(19\d{2})\s*[Εε]τ[ίι]', text)
+            birth_match = re.search(r'(19\d{2})\s*[Εε]τών', text)
             if birth_match:
                 data['birth_year'] = int(birth_match.group(1))
                 current_year = datetime.now().year
                 data['current_age'] = current_year - data['birth_year']
             
             return data
-        except:
+        except Exception as e:
+            print(f"Data parsing error: {e}")
             return data
     
     @staticmethod
@@ -220,6 +197,25 @@ class FileProcessor:
         elif filename_lower.endswith('.json'):
             return FileProcessor.process_json(file_content)
         elif any(filename_lower.endswith(fmt) for fmt in ['.jpg', '.jpeg', '.png', '.bmp', '.tiff', '.webp']):
-            return ImageProcessor.process_file(file_content, filename)
+            if IMAGE_PROCESSOR_AVAILABLE:
+                return ImageProcessor.process_file(file_content, filename)
+            else:
+                return FileProcessor._get_image_fallback()
         else:
             raise Exception("Μη υποστηριζόμενη μορφή αρχείου")
+    
+    @staticmethod
+    def _get_image_fallback():
+        """Fallback για εικόνες όταν το ImageProcessor δεν είναι διαθέσιμο"""
+        return {
+            'gender': 'male',
+            'birth_year': 1980,
+            'current_age': 45,
+            'insurance_years': 20,
+            'salary': 1500,
+            'heavy_work_years': 0,
+            'children': 0,
+            'fund': 'ika',
+            'data_source': 'Image File - Basic Fallback',
+            'note': 'Image processing not available'
+        }
