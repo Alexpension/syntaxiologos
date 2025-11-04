@@ -6,7 +6,7 @@ import requests
 from datetime import datetime
 
 class FileProcessor:
-    """Επεξεργαστής αρχείων - Διορθωμένη έκδοση"""
+    """Επεξεργαστής αρχείων - Σταθερή έκδοση χωρίς encoding errors"""
     
     @staticmethod
     def process_csv(file_content):
@@ -32,7 +32,7 @@ class FileProcessor:
 
     @staticmethod
     def process_pdf(file_content):
-        """Επεξεργασία PDF - Διορθωμένη έκδοση με πλήρη δεδομένα"""
+        """Επεξεργασία PDF - Σταθερή έκδοση χωρίς encoding issues"""
         try:
             print("🔍 Επεξεργασία PDF e-ΕΦΚΑ...")
             
@@ -48,36 +48,21 @@ class FileProcessor:
                 'children': 0,
                 'fund': 'ika',
                 'source': 'pdf_analysis',
-                'note': 'Αυτόματη ανάλυση PDF'
+                'note': 'Αυτόματη ανάλυση PDF e-ΕΦΚΑ'
             }
             
-            # 1. Προσπάθεια: External API
-            try:
-                api_data = FileProcessor._try_external_services(file_content)
+            # 1. Προσπάθεια: Basic patterns από binary data
+            basic_data = FileProcessor._extract_basic_patterns_safe(file_content)
+            if FileProcessor._is_valid_insurance_data(basic_data):
+                return {**base_data, **basic_data, 'source': 'pdf_pattern_matching'}
+            
+            # 2. Προσπάθεια: External API (μόνο αν δεν υπάρχουν patterns)
+            if not basic_data:
+                api_data = FileProcessor._try_external_services_safe(file_content)
                 if api_data and FileProcessor._is_valid_insurance_data(api_data):
                     return {**base_data, **api_data, 'source': 'pdf_api_analysis'}
-            except:
-                pass
             
-            # 2. Προσπάθεια: Text extraction
-            try:
-                text_data = FileProcessor._extract_pdf_text_advanced(file_content)
-                if text_data:
-                    parsed_data = FileProcessor._parse_efka_data_comprehensive(text_data)
-                    if FileProcessor._is_valid_insurance_data(parsed_data):
-                        return {**base_data, **parsed_data, 'source': 'pdf_text_analysis'}
-            except:
-                pass
-            
-            # 3. Προσπάθεια: Basic patterns
-            try:
-                basic_data = FileProcessor._extract_basic_patterns(file_content)
-                if FileProcessor._is_valid_insurance_data(basic_data):
-                    return {**base_data, **basic_data, 'source': 'pdf_pattern_matching'}
-            except:
-                pass
-            
-            # 4. Επιστροφή βασικών δεδομένων με οδηγίες
+            # 3. Επιστροφή βασικών δεδομένων με οδηγίες
             base_data['note'] = 'Βάσει ανάλυσης PDF, ελέγξτε: Ημέρες ασφάλισης, Μισθός, Έτος γέννησης'
             return base_data
             
@@ -86,122 +71,143 @@ class FileProcessor:
             return FileProcessor._get_pdf_fallback()
 
     @staticmethod
-    def _try_external_services(file_content):
-        """Χρήση external services για PDF processing"""
+    def _extract_basic_patterns_safe(file_content):
+        """Ασφαλής εξαγωγή patterns χωρίς encoding"""
         try:
-            # Δοκιμή με δωρεάν PDF to Text API
-            response = requests.post(
-                'https://api.pdf.co/v1/pdf/convert/to/text',
-                files={'file': ('efka_document.pdf', file_content, 'application/pdf')},
-                data={'language': 'greek'},
-                timeout=5
-            )
+            data = {}
             
-            if response.status_code == 200:
-                result = response.json()
-                text = result.get('text', '')
-                if text and len(text) > 50:
-                    return FileProcessor._parse_efka_data_comprehensive(text)
+            # Μετατροπή bytes σε string χωρίς encoding issues
+            content_str = file_content.hex()  # Χρήση hex για αποφυγή encoding errors
+            
+            # Αναζήτηση ημερών ασφάλισης (4-5 ψηφία)
+            # Σε hex, οι αριθμοί εμφανίζονται ως ascii values
+            days_patterns = [
+                r'313[0-9a-f]{6,8}',  # Πρότυπο για αριθμούς σε hex
+                r'3[0-9a-f]{7,9}'     # Άλλο pattern για αριθμούς
+            ]
+            
+            for pattern in days_patterns:
+                match = re.search(pattern, content_str)
+                if match:
+                    try:
+                        # Μετατροπή hex σε αριθμό
+                        hex_value = match.group(0)
+                        # Προσπάθεια εξαγωγής αριθμού
+                        potential_number = FileProcessor._extract_number_from_hex(hex_value)
+                        if 1000 <= potential_number <= 40000:
+                            data['insurance_days'] = potential_number
+                            data['insurance_years'] = round(potential_number / 365, 1)
+                            break
+                    except:
+                        continue
+            
+            # Αναζήτηση μισθού (αριθμοί με 3-4 ψηφία)
+            salary_pattern = r'3[0-9a-f]{6,8}'
+            salary_match = re.search(salary_pattern, content_str)
+            if salary_match:
+                try:
+                    hex_value = salary_match.group(0)
+                    potential_salary = FileProcessor._extract_number_from_hex(hex_value)
+                    if 100 <= potential_salary <= 9999:
+                        data['salary'] = float(potential_salary)
+                except:
+                    pass
+            
+            # Αναζήτηση έτους γέννησης (19XX)
+            year_pattern = r'3139[5-9a-f][0-9a-f]'
+            year_match = re.search(year_pattern, content_str)
+            if year_match:
+                try:
+                    hex_value = year_match.group(0)
+                    # Μετατροπή hex σε string και εξαγωγή έτους
+                    year_str = bytes.fromhex(hex_value).decode('ascii', errors='ignore')
+                    year_match = re.search(r'19[5-9]\d', year_str)
+                    if year_match:
+                        data['birth_year'] = int(year_match.group(0))
+                        data['current_age'] = datetime.now().year - data['birth_year']
+                except:
+                    pass
+            
+            return data
+            
+        except Exception as e:
+            print(f"Basic patterns error: {e}")
+            return {}
+
+    @staticmethod
+    def _extract_number_from_hex(hex_string):
+        """Εξαγωγή αριθμού από hex string"""
+        try:
+            # Μετατροπή hex σε bytes και μετά σε string
+            bytes_data = bytes.fromhex(hex_string)
+            # Προσπάθεια ανάγνωσης ως ascii
+            text = bytes_data.decode('ascii', errors='ignore')
+            # Εξαγωγή αριθμών από το κείμενο
+            numbers = re.findall(r'\d+', text)
+            if numbers:
+                return int(numbers[0])
         except:
             pass
+        
+        # Εναλλακτική: direct conversion από hex
+        try:
+            return int(hex_string, 16)
+        except:
+            return 0
+
+    @staticmethod
+    def _try_external_services_safe(file_content):
+        """Ασφαλής χρήση external services"""
+        try:
+            # Χρήση API μόνο αν το αρχείο είναι μικρό (για απόδοση)
+            if len(file_content) < 1000000:  # Μικρότερο από 1MB
+                response = requests.post(
+                    'https://api.pdf.co/v1/pdf/convert/to/text',
+                    files={'file': ('efka.pdf', file_content, 'application/pdf')},
+                    data={'language': 'greek'},
+                    timeout=10
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    text = result.get('text', '')
+                    if text and len(text) > 50:
+                        return FileProcessor._parse_efka_data_safe(text)
+        except Exception as e:
+            print(f"External API error: {e}")
         
         return None
 
     @staticmethod
-    def _extract_pdf_text_advanced(file_content):
-        """Προχωρημένη εξαγωγή κειμένου από PDF"""
+    def _parse_efka_data_safe(text):
+        """Ασφαλής ανάλυση δεδομένων από κείμενο"""
+        data = {}
+        
         try:
-            text = ""
+            clean_text = text.upper()
             
-            # Αναζήτηση για text objects
-            patterns = [
-                rb'\(([^\)]+)\)',
-                rb'BT[\s\S]{1,500}?ET',
-            ]
-            
-            for pattern in patterns:
-                matches = re.findall(pattern, file_content)
-                for match in matches:
-                    if isinstance(match, bytes):
-                        for encoding in ['utf-8', 'latin-1', 'cp1253']:
-                            try:
-                                decoded = match.decode(encoding, errors='ignore')
-                                if any(c in 'ΑαΒβΓγΔδΕεΖζΗηΘθΙιΚκΛλΜμΝνΞξΟοΠπΡρΣσΤτΥυΦφΧχΨψΩω' for c in decoded):
-                                    text += decoded + " "
-                                    break
-                            except:
-                                continue
-            
-            return text if len(text) > 20 else ""
-        except:
-            return ""
-
-    @staticmethod
-    def _extract_basic_patterns(file_content):
-        """Εξαγωγή βασικών patterns"""
-        try:
-            content_str = str(file_content)
-            data = {}
-            
-            # Ημέρες ασφάλισης
-            days_match = re.search(r'(\d{4,5})', content_str)
+            # Αναζήτηση ημερών ασφάλισης
+            days_match = re.search(r'(\d{4,5})', clean_text)
             if days_match:
                 days = int(days_match.group(1))
                 if 1000 <= days <= 40000:
                     data['insurance_days'] = days
                     data['insurance_years'] = round(days / 365, 1)
             
-            # Μισθός
-            salary_match = re.search(r'(\d{3,4}[,.]\d{2})', content_str)
+            # Αναζήτηση μισθού
+            salary_match = re.search(r'(\d{3,4}[,.]\d{2})', clean_text)
             if salary_match:
-                data['salary'] = float(salary_match.group(1).replace(',', '.'))
+                salary_str = salary_match.group(1).replace(',', '.')
+                data['salary'] = float(salary_str)
             
-            # Έτος γέννησης
-            year_match = re.search(r'(19[5-9]\d)', content_str)
+            # Αναζήτηση έτους γέννησης
+            year_match = re.search(r'(19[5-9]\d)', clean_text)
             if year_match:
                 data['birth_year'] = int(year_match.group(1))
                 data['current_age'] = datetime.now().year - data['birth_year']
             
-            return data
-        except:
-            return {}
-
-    @staticmethod
-    def _parse_efka_data_comprehensive(text):
-        """Ολοκληρωμένη ανάλυση δεδομένων e-ΕΦΚΑ"""
-        data = {}
-        
-        clean_text = text.upper().replace('\n', ' ')
-        
-        # Ημέρες ασφάλισης
-        days_match = re.search(r'ΗΜΕΡΕΣ[\s:]*(\d{4,5})', clean_text)
-        if not days_match:
-            days_match = re.search(r'(\d{4,5})\s*ΗΜΕΡ', clean_text)
-        if days_match:
-            data['insurance_days'] = int(days_match.group(1))
-            data['insurance_years'] = round(data['insurance_days'] / 365, 1)
-        
-        # Μισθός
-        salary_match = re.search(r'ΜΙΣΘΟΣ[\s:]*(\d+[,.]?\d*)', clean_text)
-        if not salary_match:
-            salary_match = re.search(r'(\d{3,4}[,.]\d{2})\s*ΕΥΡ', clean_text)
-        if salary_match:
-            salary_str = salary_match.group(1).replace(',', '.')
-            data['salary'] = float(salary_str)
-        
-        # Έτος γέννησης
-        birth_match = re.search(r'ΓΕΝΝΗΣΗΣ[\s:]*(\d{4})', clean_text)
-        if not birth_match:
-            birth_match = re.search(r'ΕΤΟΣ[\s:]*ΓΕΝΝΗΣΗΣ[\s:]*(\d{4})', clean_text)
-        if birth_match:
-            data['birth_year'] = int(birth_match.group(1))
-            data['current_age'] = datetime.now().year - data['birth_year']
-        
-        # Φύλο
-        if 'ΑΡΣΕΝΙΚΟ' in clean_text:
-            data['gender'] = 'male'
-        elif 'ΘΗΛΥΚΟ' in clean_text:
-            data['gender'] = 'female'
+        except Exception as e:
+            print(f"Data parsing error: {e}")
         
         return data
 
@@ -216,7 +222,7 @@ class FileProcessor:
 
     @staticmethod
     def _get_pdf_fallback():
-        """Ασφαλές fallback με ΟΛΑ τα απαιτούμενα πεδία"""
+        """Ασφαλές fallback"""
         return {
             'gender': 'female',
             'birth_year': 1969,
