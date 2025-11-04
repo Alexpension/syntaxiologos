@@ -77,7 +77,22 @@ class FileProcessor:
         try:
             text = ""
             
-            # Απλή αναζήτηση για κείμενο σε PDF με υποστήριξη Ελληνικών
+            # Πρώτη προσπάθεια: pdfplumber αν είναι διαθέσιμο
+            try:
+                import pdfplumber
+                with pdfplumber.open(io.BytesIO(file_content)) as pdf:
+                    for page in pdf.pages:
+                        page_text = page.extract_text()
+                        if page_text:
+                            text += page_text + "\n"
+                if text and len(text.strip()) > 50:
+                    return text
+            except ImportError:
+                pass
+            except Exception as e:
+                print(f"PDFPlumber extraction failed: {e}")
+            
+            # Δεύτερη προσπάθεια: Απλή αναζήτηση για κείμενο σε PDF
             text_matches = re.findall(rb'\(([^\)]+)\)', file_content)
             
             for match in text_matches:
